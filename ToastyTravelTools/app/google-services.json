@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "186862695200",
+    "project_id": "toastytraveltools",
+    "storage_bucket": "toastytraveltools.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:186862695200:android:b166d2e6abd1b5ec9f5d45",
+        "android_client_info": {
+          "package_name": "com.example.toastytraveltools"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLFsQwA9NdlfyYFd2siJ-TpFyszsRzYro"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
