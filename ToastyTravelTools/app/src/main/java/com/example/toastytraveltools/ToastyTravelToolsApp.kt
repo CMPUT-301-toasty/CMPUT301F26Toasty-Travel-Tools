@@ -1,0 +1,18 @@
+package com.example.toastytraveltools
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.NavHost
+
+
+@Composable
+fun ToastyTravelToolsApp() {
+    val navController = rememberNavController()
+
+    // set the start screen to the search screen since we don't have other screens yet
+    // this can always be changed
+    NavHost(navController = navController, startDestination = "search") {
+        composable("search") { SearchScreen() }
+    }
+}
