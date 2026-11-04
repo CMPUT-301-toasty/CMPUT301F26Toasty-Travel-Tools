@@ -37,6 +37,11 @@ fun ConfirmationScreen(reservation: Reservation) {
         Button(onClick = { saveCsv.launch("reservation_${reservation.id}.csv") }) {
             Text("Download CSV")
         }
+//        Button(onClick = { ReservationNotifier.send(context, reservation) }) {
+//            Text("Test notification")
+//        }
+        // notifications works, but it should probably be sent after a reservation is booked
+        // before navigating to confirmation screen
     }
 }
 
