@@ -1,0 +1,15 @@
+package com.example.toastytraveltools
+
+import com.google.firebase.Timestamp
+import com.google.firebase.firestore.DocumentId
+data class Lottery(
+    @DocumentId var id: String = "",
+    var campsiteIds: List<String> = emptyList(),
+    var ownerId: String = "",
+    var registrationStart: Timestamp? = null,
+    var registrationEnd: Timestamp? = null,
+    var numberOfWinners: Int = 0,
+    var waitList: List<String> = emptyList(),
+    var waitlistCapacity: Int? = null,
+    var status: String = ""
+)

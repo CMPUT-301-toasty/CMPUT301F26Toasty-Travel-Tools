@@ -1,5 +1,6 @@
 package com.example.toastytraveltools
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
 
@@ -34,6 +36,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 @Composable
 fun DisplayCampsite(Campsite: Campsite) {
     Text("Results for: $Campsite")
+
 }
 
 // searches for campsites by name
@@ -67,7 +70,43 @@ fun filter_search(
 }
 
 @Composable
-fun SearchScreen() {
+fun CampsiteRow(
+    campsite: Campsite,
+    onClick: ()-> Unit
+                ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    onClick() }
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Text(
+                text = campsite.Name,
+                fontSize = 18.sp,
+            )
+
+            Text(
+                text = campsite.Location,
+                fontSize = 14.sp,
+            )
+
+            Text(
+                text = "Guests Limit: ${campsite.OccupancyLimit}",
+                fontSize = 14.sp,
+            )
+
+            Text(
+                text = "Rating: ${campsite.Rating}",
+                fontSize = 14.sp,
+            )
+        }
+}
+
+@Composable
+fun SearchScreen(
+    onCampsiteClick: (String) -> Unit
+) {
     var searchClicked by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var results by remember { mutableStateOf(listOf<Campsite>()) }
@@ -209,12 +248,12 @@ fun SearchScreen() {
                         modifier = Modifier.padding(top = 16.dp)
                     )
                 } else {
-                    LazyColumn(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(results) { campsite ->
-                            DisplayCampsite(campsite)
+                            CampsiteRow(
+                                campsite = campsite,
+                                onClick = { onCampsiteClick(campsite.id)}
+                            )
                         }
                     }
                 }
