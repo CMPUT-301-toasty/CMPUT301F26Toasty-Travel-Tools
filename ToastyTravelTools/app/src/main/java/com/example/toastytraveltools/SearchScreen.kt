@@ -29,6 +29,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
+import java.text.SimpleDateFormat
+import java.util.Locale
+import android.util.Log
 
 // display of one campsite card after the search
 @Composable
@@ -61,11 +64,74 @@ fun filter_search(
     onResult: (List<Campsite>) -> Unit,
     onError: (Exception) -> Unit
 ) {
-    // need to implement the search
+    val db = FirebaseFirestore.getInstance()
+    val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
 
+    db.collection("campsites")
+        .get()
+        .addOnSuccessListener { campsiteSnap ->
+            // read the raw fields so this works with the capitalized names in the console
+            val campsites = campsiteSnap.documents.filter { doc ->
+                val loc = doc.getString("Location") ?: ""
+                val limit = doc.getLong("OccupancyLimit") ?: 0L
+                loc.contains(location, ignoreCase = true) && limit >= numGuests
+            }
+            Log.d("FilterDebug", "location/guests matches: ${campsites.map { it.id }}")
 
+            db.collection("lotteries")
+                .get()
+                .addOnSuccessListener { lotterySnap ->
+                    // campsite IDs that have a lottery whose booking period includes the date
+                    val lotteryCampsiteIds = lotterySnap.documents
+                        .filter { doc ->
+                            val bookStart = doc.getDate("BookingStartDate")
+                            val bookEnd = doc.getDate("BookingEndDate")
+                            bookStart != null && bookEnd != null &&
+                                    fmt.format(bookStart) <= date && date <= fmt.format(bookEnd)
+                        }
+                        .flatMap { doc ->
+                            when (val raw = doc.get("campsite_id")) {
+                                is List<*> -> raw.filterIsInstance<String>()
+                                is String -> listOf(raw)
+                                else -> emptyList()
+                            }
+                        }
+                    Log.d("FilterDebug", "campsite IDs with a lottery on $date: $lotteryCampsiteIds")
+
+                    val withLottery = campsites.filter { it.id in lotteryCampsiteIds }
+
+                    db.collection("reservations")
+                        .get()
+                        .addOnSuccessListener { resSnap ->
+                            val bookedNames = resSnap.documents
+                                .filter { doc ->
+                                    val start = doc.getString("startDate") ?: ""
+                                    val end = doc.getString("endDate") ?: ""
+                                    start <= date && date <= end
+                                }
+                                .map { it.getString("campsiteName") ?: "" }
+
+                            val matches = withLottery
+                                .filter { (it.getString("Name") ?: "") !in bookedNames }
+                                .mapNotNull { it.toObject(Campsite::class.java) }
+                            Log.d("FilterDebug", "final matches: ${matches.size}")
+                            onResult(matches)
+                        }
+                        .addOnFailureListener {
+                            Log.e("FilterDebug", "reservations failed", it)
+                            onError(it)
+                        }
+                }
+                .addOnFailureListener {
+                    Log.e("FilterDebug", "lotteries failed", it)
+                    onError(it)
+                }
+        }
+        .addOnFailureListener {
+            Log.e("FilterDebug", "campsites failed", it)
+            onError(it)
+        }
 }
-
 @Composable
 fun SearchScreen() {
     var searchClicked by remember { mutableStateOf(false) }
