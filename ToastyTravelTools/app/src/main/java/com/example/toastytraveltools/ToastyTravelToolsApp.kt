@@ -13,7 +13,7 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
 
     // set the start screen to the search screen since we don't have other screens yet
     // this can always be changed
-    NavHost(navController = navController, startDestination = "confirmation/{reservationId}") {
+    NavHost(navController = navController, startDestination = "confirmation/{reservationId}") { // works if you make your own reservation manually in the firebase console
         composable("search") { SearchScreen() }
         composable("confirmation/{reservationId}") { backStackEntry ->
             val id = backStackEntry.arguments?.getString("reservationId")
