@@ -14,7 +14,6 @@ fun OwnerScreenAddCampsite() {
 
     Column(modifier = Modifier.verticalScroll(scrollState)) {
         Text("Owner Screen")
-
     }
 
 }
