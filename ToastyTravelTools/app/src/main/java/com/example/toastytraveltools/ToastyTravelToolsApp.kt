@@ -13,6 +13,6 @@ fun ToastyTravelToolsApp() {
     // set the start screen to the search screen since we don't have other screens yet
     // this can always be changed
     NavHost(navController = navController, startDestination = "search") {
-        composable("search") { SearchScreen() }
+        composable("search") { SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id")}) }
     }
 }
