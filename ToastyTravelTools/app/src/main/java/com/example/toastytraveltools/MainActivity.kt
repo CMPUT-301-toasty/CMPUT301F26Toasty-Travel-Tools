@@ -17,9 +17,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val reservationRepository = ReservationRepository() // I think we need a repository for campsites too
         setContent {
             ToastyTravelToolsTheme {
-                ToastyTravelToolsApp()
+                ToastyTravelToolsApp(reservationRepository)
             }
         }
     }
