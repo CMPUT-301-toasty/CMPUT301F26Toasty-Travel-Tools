@@ -30,6 +30,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.OutlinedButton
 
 
 // this screen appears when the user clicks on the specific row
@@ -173,13 +174,34 @@ fun CampsiteDetailsScreen(
         if(snapshot_lottery != null) {
             if (snapshot_lottery.waitlist.contains(deviceId)) {
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = "You have already joined this lottery",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(16.dp)
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "You have already joined this lottery",
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = {
+                                FirebaseFirestore.getInstance()
+                                    .collection("lotteries")
+                                    .document(snapshot_lottery.id)
+                                    .update("waitlist", FieldValue.arrayRemove(deviceId))
+                                    .addOnSuccessListener {
+                                        // update the screen so the join button comes back
+                                        lottery =
+                                            snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist - deviceId)
+                                    }
+                                    .addOnFailureListener { onError(it) }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        {
+                            Text(text = "Leave")
+                        }
+                    }
                 }
-            } else {
+            }
+        else {
                 Button(
                     onClick = {FirebaseFirestore.getInstance()
                         .collection("lotteries")
