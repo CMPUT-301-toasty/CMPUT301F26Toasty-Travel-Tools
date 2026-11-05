@@ -13,7 +13,7 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
 
     // set the start screen to the search screen since we don't have other screens yet
     // this can always be changed
-    NavHost(navController = navController, startDestination = "confirmation/3BWY6WQ3jmyilgKzJlvd") {
+    NavHost(navController = navController, startDestination = "search") {
         composable("search") { SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id")}) }
         composable("confirmation/{reservationId}") { backStackEntry ->
             val id = backStackEntry.arguments?.getString("reservationId")
