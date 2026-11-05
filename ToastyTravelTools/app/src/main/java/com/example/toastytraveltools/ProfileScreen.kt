@@ -3,10 +3,12 @@ package com.example.toastytraveltools
 import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -14,6 +16,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -84,8 +88,54 @@ fun deleteProfile(
         }
 }
 
+
 @Composable
-fun ProfileScreen(userId: String) {
+fun BottomButtons_Profile(
+    onSearchClick: () -> Unit,
+    onReservationClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // filled button = the screen you're on
+        OutlinedButton(
+            onClick = onSearchClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Search", maxLines = 1)
+        }
+        OutlinedButton(
+            onClick = onReservationClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Reservation", maxLines = 1)
+        }
+        Button(
+            onClick = onProfileClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Profile", maxLines = 1)
+        }
+    }
+}
+@Composable
+fun ProfileScreen(
+    userId: String,
+    onSearchClick: () -> Unit = {},
+    onReservationClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
+) {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
 
@@ -110,143 +160,155 @@ fun ProfileScreen(userId: String) {
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .padding(top = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        Text("Profile", style = MaterialTheme.typography.headlineMedium)
+    Scaffold(
+        bottomBar = {
+            BottomButtons_Profile(
+                onSearchClick = onSearchClick,
+                onReservationClick = onReservationClick,
+                onProfileClick = onProfileClick
+            )
+        }
+    ){ innerpadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp)
+                .padding(top = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text("Profile", style = MaterialTheme.typography.headlineMedium)
 
-        val current = profile
+            val current = profile
 
-        when {
-            loadError != null -> Text(loadError!!, color = MaterialTheme.colorScheme.error)
+            when {
+                loadError != null -> Text(loadError!!, color = MaterialTheme.colorScheme.error)
 
-            current == null -> CircularProgressIndicator()
+                current == null -> CircularProgressIndicator()
 
-            !isEditing -> {
-                Text("Name", style = MaterialTheme.typography.labelMedium)
-                Text(current.name)
+                !isEditing -> {
+                    Text("Name", style = MaterialTheme.typography.labelMedium)
+                    Text(current.name)
 
-                Text("Email", style = MaterialTheme.typography.labelMedium)
-                Text(current.email)
+                    Text("Email", style = MaterialTheme.typography.labelMedium)
+                    Text(current.email)
 
-                Text("Phone", style = MaterialTheme.typography.labelMedium)
-                Text(current.phone)
+                    Text("Phone", style = MaterialTheme.typography.labelMedium)
+                    Text(current.phone)
 
-                Button(
-                    onClick = {
-                        name = current.name
-                        email = current.email
-                        phone = current.phone
-                        nameError = null
-                        emailError = null
-                        phoneError = null
-                        message = null
-                        isEditing = true
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Edit")
-                }
-
-                Spacer(Modifier.padding(8.dp))
-
-                Button(
-                    onClick = {
-                        deleteProfile(
-                            userId = userId,
-                            onDeleted = {
-                                message = "Profile deleted"
-                            }
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Delete Profile")
-                }
-            }
-            // on deleting a profile the details keep showing on the screen. Will change that
-
-            else -> { //  editing view
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it; nameError = null },
-                    label = { Text("Name") },
-                    singleLine = true,
-                    isError = nameError != null,
-                    supportingText = { nameError?.let { Text(it) } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it; emailError = null },
-                    label = { Text("Email") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    isError = emailError != null,
-                    supportingText = { emailError?.let { Text(it) } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = { phone = it; phoneError = null },
-                    label = { Text("Phone number") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    isError = phoneError != null,
-                    supportingText = { phoneError?.let { Text(it) } },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { isEditing = false },
-                        enabled = !saving,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Cancel")
-                    }
                     Button(
                         onClick = {
-                            nameError = validateName(name)
-                            emailError = validateEmail(email)
-                            phoneError = validatePhone(phone)
-
-                            if (nameError == null && emailError == null && phoneError == null) {
-                                val updated = UserProfile(
-                                    name = name.trim(),
-                                    email = email.trim(),
-                                    phone = phone.trim()
-                                )
-                                saving = true
-                                saveProfile(
-                                    userId = userId,
-                                    profile = updated,
-                                    onSaved = {
-                                        saving = false
-                                        profile = updated
-                                        isEditing = false
-                                        message = "Profile saved"
-                                    },
-                                    onError = {
-                                        saving = false
-                                        message = "Could not save profile: ${it.message}"
-                                    }
-                                )
-                            }
+                            name = current.name
+                            email = current.email
+                            phone = current.phone
+                            nameError = null
+                            emailError = null
+                            phoneError = null
+                            message = null
+                            isEditing = true
                         },
-                        enabled = !saving,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(if (saving) "Saving..." else "Save")
+                        Text("Edit")
+                    }
+
+                    Spacer(Modifier.padding(8.dp))
+
+                    Button(
+                        onClick = {
+                            deleteProfile(
+                                userId = userId,
+                                onDeleted = {
+                                    message = "Profile deleted"
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Delete Profile")
+                    }
+                }
+                // on deleting a profile the details keep showing on the screen. Will change that
+
+                else -> { //  editing view
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it; nameError = null },
+                        label = { Text("Name") },
+                        singleLine = true,
+                        isError = nameError != null,
+                        supportingText = { nameError?.let { Text(it) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = { email = it; emailError = null },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        isError = emailError != null,
+                        supportingText = { emailError?.let { Text(it) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it; phoneError = null },
+                        label = { Text("Phone number") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        isError = phoneError != null,
+                        supportingText = { phoneError?.let { Text(it) } },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = { isEditing = false },
+                            enabled = !saving,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Cancel")
+                        }
+                        Button(
+                            onClick = {
+                                nameError = validateName(name)
+                                emailError = validateEmail(email)
+                                phoneError = validatePhone(phone)
+
+                                if (nameError == null && emailError == null && phoneError == null) {
+                                    val updated = UserProfile(
+                                        name = name.trim(),
+                                        email = email.trim(),
+                                        phone = phone.trim()
+                                    )
+                                    saving = true
+                                    saveProfile(
+                                        userId = userId,
+                                        profile = updated,
+                                        onSaved = {
+                                            saving = false
+                                            profile = updated
+                                            isEditing = false
+                                            message = "Profile saved"
+                                        },
+                                        onError = {
+                                            saving = false
+                                            message = "Could not save profile: ${it.message}"
+                                        }
+                                    )
+                                }
+                            },
+                            enabled = !saving,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(if (saving) "Saving..." else "Save")
+                        }
                     }
                 }
             }
-        }
 
-        message?.let { Text(it) }
+            message?.let { Text(it) }
+        }
     }
+
+
 }
