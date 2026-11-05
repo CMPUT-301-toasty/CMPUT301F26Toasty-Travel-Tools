@@ -15,5 +15,15 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
     // this can always be changed
     NavHost(navController = navController, startDestination = "search") {
         composable("search") { SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id")}) }
+        composable("confirmation/{reservationId}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("reservationId")
+            val reservation = reservationRepository.reservations.find { it.id == id }
+
+            if (reservation != null) {
+                ConfirmationScreen(reservation = reservation)
+            } else {
+                Text("Loading...")
+            }
+        }
     }
 }
