@@ -37,6 +37,7 @@ import android.util.Log
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
+import androidx.compose.ui.graphics.RectangleShape
 
 // searches for campsites by name
 fun searchCampsite(
@@ -167,7 +168,7 @@ fun CampsiteRow(
 
 // the three buttons pinned to the bottom of the screen
 @Composable
-fun BottomButtons(
+fun BottomButtons_Search(
     onSearchClick: () -> Unit,
     onReservationClick: () -> Unit,
     onProfileClick: () -> Unit
@@ -177,27 +178,30 @@ fun BottomButtons(
             .fillMaxWidth()
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // filled button = the screen you're on
         Button(
             onClick = onSearchClick,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
         ) {
             Text("Search", maxLines = 1)
         }
         OutlinedButton(
             onClick = onReservationClick,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
         ) {
             Text("Reservation", maxLines = 1)
         }
         OutlinedButton(
             onClick = onProfileClick,
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
         ) {
             Text("Profile", maxLines = 1)
         }
@@ -222,7 +226,7 @@ fun SearchScreen(
 
     Scaffold(
         bottomBar = {
-            BottomButtons(
+            BottomButtons_Search(
                 onSearchClick = onSearchClick,
                 onReservationClick = onReservationClick,
                 onProfileClick = onProfileClick

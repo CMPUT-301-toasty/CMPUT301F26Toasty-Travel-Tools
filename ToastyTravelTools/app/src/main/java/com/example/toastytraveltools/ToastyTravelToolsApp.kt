@@ -34,11 +34,11 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         }
 
         composable("reservation") {
-            ReservationScreen()
+            ReservationScreen( onSearchClick = { navController.navigate("search") }, onReservationClick = { navController.navigate("reservation") }, onProfileClick = { navController.navigate("profile") })
         }
 
         composable ("Profile") {
-            ProfileScreen(userId = "test")
+            ProfileScreen(userId = "test", onSearchClick = { navController.navigate("search") }, onReservationClick = { navController.navigate("reservation") }, onProfileClick = { navController.navigate("profile") })
         }
     }
 }
