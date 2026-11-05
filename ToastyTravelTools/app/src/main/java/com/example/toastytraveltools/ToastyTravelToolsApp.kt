@@ -1,63 +1,37 @@
 package com.example.toastytraveltools
 
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.NavHost
+
 
 @Composable
-fun ToastyTravelToolsApp() {
+fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
     val navController = rememberNavController()
 
-    NavHost(
-        navController = navController,
-        startDestination = "admin"
-    ) {
-        composable("search") {
-            SearchScreen()
-        }
+    // set the start screen to the search screen since we don't have other screens yet
+    // this can always be changed
+    NavHost(navController = navController, startDestination = "search") {
+        composable("search") { SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id")}) }
 
-        composable("admin") {
-            AdminDashboardScreen(navController)
-        }
 
-        composable("admin_campsites") {
-            AdminCampsitesScreen(
-                onBack = {
-                    navController.navigate("admin") {
-                        popUpTo("admin") {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
-                }
-            )
+        // details screen, pass in campsite id
+        composable("details/{campsiteId}") { backStackEntry ->
+            val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
+            CampsiteDetailsScreen(campsiteId = campsiteId, onError = {})
         }
+        composable("confirmation/{reservationId}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("reservationId")
+            val reservation = reservationRepository.reservations.find { it.id == id }
 
-        composable("admin_profiles") {
-            AdminProfilesScreen(
-                onBack = {
-                    navController.navigate("admin") {
-                        popUpTo("admin") {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
-                }
-            )
-        }
-
-        composable("admin_images") {
-            AdminImagesScreen(
-                onBack = {
-                    navController.navigate("admin") {
-                        popUpTo("admin") {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
-                }
-            )
+            if (reservation != null) {
+                ConfirmationScreen(reservation = reservation)
+            } else {
+                Text("Loading...")
+            }
         }
     }
 }
+

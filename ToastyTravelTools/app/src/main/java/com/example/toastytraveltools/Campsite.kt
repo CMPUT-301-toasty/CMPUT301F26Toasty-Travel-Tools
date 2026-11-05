@@ -1,6 +1,7 @@
 package com.example.toastytraveltools
-
+import com.google.firebase.firestore.DocumentId
 data class Campsite (
+    @DocumentId var id : String = "",
     val Name : String = "",
     val Description : String = "",
     val Location : String = "",
