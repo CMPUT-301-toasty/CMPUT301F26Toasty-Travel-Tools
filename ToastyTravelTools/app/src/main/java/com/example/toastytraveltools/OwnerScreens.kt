@@ -13,7 +13,7 @@ fun OwnerScreenAddCampsite() {
     val scrollState = rememberScrollState()
 
     Column(modifier = Modifier.verticalScroll(scrollState)) {
-        Text("Owner Screen")
+
     }
 
 }
