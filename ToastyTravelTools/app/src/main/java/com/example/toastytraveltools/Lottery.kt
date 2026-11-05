@@ -9,7 +9,7 @@ data class Lottery(
     var registrationStart: Timestamp? = null,
     var registrationEnd: Timestamp? = null,
     var numberOfWinners: Int = 0,
-    var waitList: List<String> = emptyList(),
+    var waitlist: List<String> = emptyList(),
     var waitlistCapacity: Int? = null,
     var status: String = ""
 )
