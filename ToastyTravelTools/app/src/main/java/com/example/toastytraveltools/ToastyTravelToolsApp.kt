@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
     val navController = rememberNavController()
     val campsiteRepository = remember { CampsiteRepository() }
+    val lotteryRepository = remember { LotteryRepository() }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {
@@ -24,6 +25,7 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         composable("owner_home") {
             OwnerHomeScreen(
                 onNavigateToAddCampsite = { navController.navigate("owner_add") },
+                onNavigateToCreateLottery = { navController.navigate("owner_create_lottery") },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -31,6 +33,22 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         composable("owner_add") {
             OwnerScreenAddCampsite(
                 repository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
@@ -43,6 +61,14 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
                 onProfileClick = { navController.navigate("profile") }
             ) 
         }
+        
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
 
         // details screen, pass in campsite id
         composable("details/{campsiteId}") { backStackEntry ->
@@ -51,6 +77,14 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
                 campsiteId = campsiteId, 
                 onBack = { navController.popBackStack() }, 
                 onError = {}
+            )
+        }
+        
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
         
@@ -63,6 +97,22 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
             } else {
                 Text("Loading...")
             }
+        
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        }
+        
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
 
         composable("reservation") {
@@ -70,6 +120,14 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
                 onSearchClick = { navController.navigate("search") }, 
                 onReservationClick = { navController.navigate("reservation") }, 
                 onProfileClick = { navController.navigate("profile") }
+            )
+        }
+        
+        composable("owner_create_lottery") {
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

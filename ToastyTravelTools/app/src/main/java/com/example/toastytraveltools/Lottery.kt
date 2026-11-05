@@ -8,6 +8,8 @@ data class Lottery(
     var ownerId: String = "",
     var registrationStart: Timestamp? = null,
     var registrationEnd: Timestamp? = null,
+    var bookingStartDate: Timestamp? = null,
+    var bookingEndDate: Timestamp? = null,
     var numberOfWinners: Int = 0,
     var waitlist: List<String> = emptyList(),
     var waitlistCapacity: Int? = null,

@@ -10,11 +10,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.google.firebase.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OwnerHomeScreen(
     onNavigateToAddCampsite: () -> Unit,
+    onNavigateToCreateLottery: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     Scaffold(
@@ -44,6 +48,17 @@ fun OwnerHomeScreen(
                     .height(56.dp)
             ) {
                 Text("Add New Campsite")
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = onNavigateToCreateLottery,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("Create Lottery")
             }
         }
     }
@@ -180,6 +195,159 @@ fun OwnerScreenAddCampsite(
                 enabled = !isSaving
             ) {
                 Text(if (isSaving) "Saving..." else "Save Campsite")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OwnerScreenCreateLottery(
+    lotteryRepository: LotteryRepository,
+    campsiteRepository: CampsiteRepository,
+    onNavigateBack: () -> Unit
+) {
+    var campsiteId by remember { mutableStateOf("") }
+    var registrationStart by remember { mutableStateOf("") }
+    var registrationEnd by remember { mutableStateOf("") }
+    var bookingStart by remember { mutableStateOf("") }
+    var bookingEnd by remember { mutableStateOf("") }
+    var numberOfWinners by remember { mutableStateOf("") }
+    
+    var errorMessage by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Create Lottery") },
+                navigationIcon = {
+                    TextButton(onClick = onNavigateBack) {
+                        Text("Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (errorMessage.isNotEmpty()) {
+                Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+            }
+
+            OutlinedTextField(
+                value = campsiteId,
+                onValueChange = { campsiteId = it },
+                label = { Text("Campsite ID *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = registrationStart,
+                onValueChange = { registrationStart = it },
+                label = { Text("Registration Start (yyyy-mm-dd) *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = registrationEnd,
+                onValueChange = { registrationEnd = it },
+                label = { Text("Registration End (yyyy-mm-dd) *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = bookingStart,
+                onValueChange = { bookingStart = it },
+                label = { Text("Booking Start Date (yyyy-mm-dd) *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = bookingEnd,
+                onValueChange = { bookingEnd = it },
+                label = { Text("Booking End Date (yyyy-mm-dd) *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            OutlinedTextField(
+                value = numberOfWinners,
+                onValueChange = { numberOfWinners = it },
+                label = { Text("Number of Winners *") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    if (campsiteId.isBlank() || registrationStart.isBlank() || registrationEnd.isBlank() || bookingStart.isBlank() || bookingEnd.isBlank() || numberOfWinners.isBlank()) {
+                        errorMessage = "Please fill in all required fields."
+                        return@Button
+                    }
+                    
+                    val fmt = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val regStart = try { fmt.parse(registrationStart) } catch (e: Exception) { null }
+                    val regEnd = try { fmt.parse(registrationEnd) } catch (e: Exception) { null }
+                    val bookStart = try { fmt.parse(bookingStart) } catch (e: Exception) { null }
+                    val bookEnd = try { fmt.parse(bookingEnd) } catch (e: Exception) { null }
+                    
+                    if (regStart == null || regEnd == null || bookStart == null || bookEnd == null) {
+                        errorMessage = "Dates must be in yyyy-MM-dd format."
+                        return@Button
+                    }
+                    
+                    if (regEnd.before(regStart)) {
+                        errorMessage = "Registration end cannot be before start."
+                        return@Button
+                    }
+                    
+                    if (bookStart.before(regEnd) || bookStart.equals(regEnd)) {
+                        errorMessage = "Booking period must begin after the registration period ends."
+                        return@Button
+                    }
+                    if (bookEnd.before(bookStart)) {
+                        errorMessage = "Booking end cannot be before start."
+                        return@Button
+                    }
+                    
+                    val winners = numberOfWinners.toIntOrNull()
+                    if (winners == null || winners <= 0) {
+                        errorMessage = "Please enter a valid number of winners."
+                        return@Button
+                    }
+                    
+                    errorMessage = ""
+                    isSaving = true
+                    
+                    val newLottery = Lottery(
+                        campsiteIds = listOf(campsiteId),
+                        ownerId = "owner123", // mocked for now until auth is fully piped
+                        registrationStart = Timestamp(regStart),
+                        registrationEnd = Timestamp(regEnd),
+                        bookingStartDate = Timestamp(bookStart),
+                        bookingEndDate = Timestamp(bookEnd),
+                        numberOfWinners = winners
+                    )
+                    
+                    lotteryRepository.addLottery(
+                        lottery = newLottery,
+                        onSuccess = { onNavigateBack() },
+                        onFailure = { e -> 
+                            isSaving = false
+                            errorMessage = "Failed: ${e.message}"
+                        }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isSaving
+            ) {
+                Text(if (isSaving) "Creating..." else "Create Lottery")
             }
         }
     }
