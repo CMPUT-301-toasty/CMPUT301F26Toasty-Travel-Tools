@@ -38,6 +38,33 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.graphics.RectangleShape
+import com.google.firebase.firestore.DocumentSnapshot
+
+// helper to safely parse campsites that might have been saved with either capitalized or lowercase keys
+fun DocumentSnapshot.toCampsiteSafely(): Campsite {
+    val name = getString("Name") ?: getString("name") ?: ""
+    val desc = getString("Description") ?: getString("description") ?: ""
+    val loc = getString("Location") ?: getString("location") ?: ""
+    val limit = getLong("OccupancyLimit") ?: getLong("occupancyLimit") ?: 0L
+    val imagesUrl = getString("ImagesUrl") ?: getString("imagesUrl") ?: ""
+    val rating = getDouble("Rating") ?: getDouble("rating") ?: 0.0
+    val tags = (get("Tags") as? List<*>)?.mapNotNull { it as? String }
+        ?: (get("tags") as? List<*>)?.mapNotNull { it as? String }
+        ?: emptyList()
+    val qrCodeUrl = getString("QrCodeUrl") ?: getString("qrCodeUrl") ?: ""
+
+    return Campsite(
+        id = id,
+        Name = name,
+        Description = desc,
+        Location = loc,
+        OccupancyLimit = limit.toInt(),
+        ImagesUrl = imagesUrl,
+        Rating = rating,
+        Tags = tags,
+        QrCodeUrl = qrCodeUrl
+    )
+}
 
 // searches for campsites by name
 fun searchCampsite(
@@ -49,8 +76,13 @@ fun searchCampsite(
         .collection("campsites")
         .get()
         .addOnSuccessListener { snapshot ->
-            val matches = snapshot.toObjects(Campsite::class.java)
-                .filter { it.Name.contains(query, ignoreCase = true) }
+            val matches = snapshot.documents.map { it.toCampsiteSafely() }
+                .filter { 
+                    it.Name.contains(query, ignoreCase = true) ||
+                    it.Description.contains(query, ignoreCase = true) ||
+                    it.Location.contains(query, ignoreCase = true) ||
+                    it.Tags.any { tag -> tag.contains(query, ignoreCase = true) }
+                }
             onResult(matches)
         }
         .addOnFailureListener { onError(it) }
@@ -61,6 +93,7 @@ fun filter_search(
     location: String,
     date: String,
     numGuests: Int,
+    tags: String,
     onResult: (List<Campsite>) -> Unit,
     onError: (Exception) -> Unit
 ) {
@@ -72,9 +105,25 @@ fun filter_search(
         .addOnSuccessListener { campsiteSnap ->
             // read the raw fields so this works with the capitalized names in the console
             val campsites = campsiteSnap.documents.filter { doc ->
-                val loc = doc.getString("Location") ?: ""
-                val limit = doc.getLong("OccupancyLimit") ?: 0L
-                loc.contains(location, ignoreCase = true) && limit >= numGuests
+                val loc = doc.getString("Location") ?: doc.getString("location") ?: ""
+                val limit = doc.getLong("OccupancyLimit") ?: doc.getLong("occupancyLimit") ?: 0L
+                val docTags = (doc.get("Tags") as? List<*>)?.mapNotNull { it as? String } 
+                    ?: (doc.get("tags") as? List<*>)?.mapNotNull { it as? String } 
+                    ?: emptyList()
+
+                val locMatch = loc.contains(location, ignoreCase = true)
+                val limitMatch = limit >= numGuests
+                
+                val searchTagsList = tags.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                val tagsMatch = if (searchTagsList.isEmpty()) {
+                    true
+                } else {
+                    searchTagsList.any { searchTag -> 
+                        docTags.any { it.contains(searchTag, ignoreCase = true) } 
+                    }
+                }
+
+                locMatch && limitMatch && tagsMatch
             }
             Log.d("FilterDebug", "location/guests matches: ${campsites.map { it.id }}")
 
@@ -105,15 +154,19 @@ fun filter_search(
                         .addOnSuccessListener { resSnap ->
                             val bookedNames = resSnap.documents
                                 .filter { doc ->
-                                    val start = doc.getString("startDate") ?: ""
-                                    val end = doc.getString("endDate") ?: ""
+                                    val start = doc.getString("startDate") ?: doc.getString("StartDate") ?: ""
+                                    val end = doc.getString("endDate") ?: doc.getString("EndDate") ?: ""
+                                    if (start.isBlank() || end.isBlank()) return@filter false
                                     start <= date && date <= end
                                 }
                                 .map { it.getString("campsiteName") ?: "" }
 
                             val matches = withLottery
-                                .filter { (it.getString("Name") ?: "") !in bookedNames }
-                                .mapNotNull { it.toObject(Campsite::class.java) }
+                                .filter { 
+                                    val name = it.getString("Name") ?: it.getString("name") ?: ""
+                                    name !in bookedNames 
+                                }
+                                .map { it.toCampsiteSafely() }
                             Log.d("FilterDebug", "final matches: ${matches.size}")
                             onResult(matches)
                         }
@@ -153,6 +206,14 @@ fun CampsiteRow(
             text = campsite.Location,
             fontSize = 14.sp,
         )
+
+        if (campsite.Tags.isNotEmpty()) {
+            Text(
+                text = "Tags: ${campsite.Tags.joinToString(", ")}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.secondary
+            )
+        }
 
         Text(
             text = "Guests Limit: ${campsite.OccupancyLimit}",
@@ -223,6 +284,7 @@ fun SearchScreen(
     var filter_location by remember { mutableStateOf("") }
     var filter_date by remember { mutableStateOf("") }
     var filter_num_guests by remember { mutableStateOf("") }
+    var filter_tags by remember { mutableStateOf("") }
 
     Scaffold(
         bottomBar = {
@@ -326,6 +388,13 @@ fun SearchScreen(
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            OutlinedTextField(
+                                value = filter_tags,
+                                onValueChange = { filter_tags = it },
+                                label = { Text("Tags (comma separated)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
                             Button(
                                 onClick = {
                                     if (filter_location.isNotBlank() &&
@@ -336,6 +405,7 @@ fun SearchScreen(
                                             location = filter_location,
                                             date = filter_date,
                                             numGuests = filter_num_guests.toIntOrNull() ?: 0,
+                                            tags = filter_tags,
                                             onResult = {
                                                 results = it
                                                 hasSearched = true

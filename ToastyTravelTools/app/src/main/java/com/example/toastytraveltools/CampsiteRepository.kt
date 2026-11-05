@@ -4,32 +4,31 @@ import androidx.compose.runtime.mutableStateListOf
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 
-public class CampsiteRepository {
+class CampsiteRepository {
     private val db = Firebase.firestore
-    private val campsitesRef = db.collection("Campsites")
+    private val campsitesRef = db.collection("campsites")
 
-    private val _campsites = mutableStateListOf(Campsite(
-        Name = TODO(),
-        Description = TODO(),
-        Location = TODO(),
-        OccupancyLimit = TODO(),
-        ImagesUrl = TODO(),
-        Rating = TODO()
-    ))
+    private val _campsites = mutableStateListOf<Campsite>()
 
     val campsites: List<Campsite>
         get() = _campsites
 
-    fun addCampsite(campsite: Campsite) {
-        campsitesRef.document(campsite.Name).set(campsite)
+    fun addCampsite(campsite: Campsite, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+        val documentRef = campsitesRef.document()
+        val newCampsite = campsite.copy(id = documentRef.id)
+        documentRef.set(newCampsite)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
-    fun updateCity(oldCampsite: Campsite, updatedCampsite: Campsite) {
-        campsitesRef.document(oldCampsite.Name).set(updatedCampsite)
+    fun updateCampsite(campsite: Campsite, onSuccess: () -> Unit = {}, onFailure: (Exception) -> Unit = {}) {
+        campsitesRef.document(campsite.id).set(campsite)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onFailure(it) }
     }
 
-    fun deleteCity(campsite: Campsite) {
-        campsitesRef.document(campsite.Name).delete()
+    fun deleteCampsite(campsite: Campsite) {
+        campsitesRef.document(campsite.id).delete()
     }
 
     init {
@@ -40,10 +39,10 @@ public class CampsiteRepository {
 
             _campsites.clear()
             snapshot?.documents?.forEach { document ->
-                val city = document.toObject(Campsite::class.java)
-                if (city != null) {
-                    _campsites.add(city)
-                }
+                try {
+                    val camp = document.toCampsiteSafely()
+                    _campsites.add(camp)
+                } catch (e: Exception) {}
             }
         }
     }
