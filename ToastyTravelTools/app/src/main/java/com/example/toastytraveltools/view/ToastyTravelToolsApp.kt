@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -6,6 +6,9 @@ import androidx.compose.runtime.remember
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.NavHost
+import com.example.toastytraveltools.controller.CampsiteRepository
+import com.example.toastytraveltools.controller.LotteryRepository
+import com.example.toastytraveltools.controller.ReservationRepository
 
 
 @Composable
@@ -53,11 +56,11 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
             )
         }
 
-        composable("search") { 
+        composable("search") {
             SearchScreen(
-                onCampsiteClick = { id -> navController.navigate("details/$id") }, 
-                onSearchClick = { navController.navigate("search") }, 
-                onReservationClick = { navController.navigate("reservation") }, 
+                onCampsiteClick = { id -> navController.navigate("details/$id") },
+                onSearchClick = { navController.navigate("search") },
+                onReservationClick = { navController.navigate("reservation") },
                 onProfileClick = { navController.navigate("profile") }
             ) 
         }
@@ -74,8 +77,8 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         composable("details/{campsiteId}") { backStackEntry ->
             val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
             CampsiteDetailsScreen(
-                campsiteId = campsiteId, 
-                onBack = { navController.popBackStack() }, 
+                campsiteId = campsiteId,
+                onBack = { navController.popBackStack() },
                 onError = {}
             )
         }
@@ -117,9 +120,9 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         }
 
         composable("reservation") {
-            ReservationScreen( 
-                onSearchClick = { navController.navigate("search") }, 
-                onReservationClick = { navController.navigate("reservation") }, 
+            ReservationScreen(
+                onSearchClick = { navController.navigate("search") },
+                onReservationClick = { navController.navigate("reservation") },
                 onProfileClick = { navController.navigate("profile") }
             )
         }
@@ -134,9 +137,9 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
 
         composable("profile") {
             ProfileScreen(
-                userId = "test", 
-                onSearchClick = { navController.navigate("search") }, 
-                onReservationClick = { navController.navigate("reservation") }, 
+                userId = "test",
+                onSearchClick = { navController.navigate("search") },
+                onReservationClick = { navController.navigate("reservation") },
                 onProfileClick = { navController.navigate("profile") }
             )
         }
