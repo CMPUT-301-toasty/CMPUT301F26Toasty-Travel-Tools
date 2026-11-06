@@ -1,3 +1,14 @@
+/*
+ProfileScreen.kt
+
+Purpose: One of the screens the user can access, and it allows you to view your information, turn
+off/on notifications, view app policy, edit information, and delete profile.
+
+Issues:
+ - delete profile button should come with some type of confirmation because you cannot undo it and
+ it is really easy to accidently delete your profile
+ */
+
 package com.example.toastytraveltools.view
 
 import android.hardware.usb.UsbDevice.getDeviceId

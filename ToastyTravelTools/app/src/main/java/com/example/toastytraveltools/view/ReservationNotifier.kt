@@ -1,3 +1,13 @@
+/*
+ReservationNotifier.kt
+
+Purpose: Sends a notification to show that a reservation has been confirmed. Checks to see
+if the entrant has opted in to notifications.
+
+Issues:
+ - no outstanding issues currently
+ */
+
 package com.example.toastytraveltools.view
 
 import android.Manifest

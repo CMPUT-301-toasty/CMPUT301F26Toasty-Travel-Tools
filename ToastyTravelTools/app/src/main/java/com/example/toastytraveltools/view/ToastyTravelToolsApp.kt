@@ -1,3 +1,12 @@
+/*
+ToastyTravelToolsApp.kt
+
+Purpose: This is the main file for the Toasty Travel Tools app. It contains the navigation
+
+Issues:
+ - no outstanding issues currently
+ */
+
 
 package com.example.toastytraveltools.view
 
