@@ -1,10 +1,13 @@
 /*
 ConfirmationScreen.kt
 
-Purpose:
+Purpose: Display details about the reservation after
+      a lottery winner wins one. Offer a csv download
+      of the confirmation as well.
+
 
 Issues:
- -
+ - Fix the layout for the end product
  */
 
 package com.example.toastytraveltools.view
