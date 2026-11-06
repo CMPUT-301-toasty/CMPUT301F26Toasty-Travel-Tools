@@ -46,16 +46,9 @@ fun ToastyTravelToolsApp() {
             )
         }
 
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
         composable("search") { 
             SearchScreen(
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
                 onCampsiteClick = { id -> navController.navigate("details/$id") }, 
                 onSearchClick = { navController.navigate("search") }, 
                 onReservationClick = { navController.navigate("reservation") }, 
@@ -63,14 +56,6 @@ fun ToastyTravelToolsApp() {
             ) 
         }
         
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
         // details screen, pass in campsite id
         composable("details/{campsiteId}") { backStackEntry ->
             val campsiteId = backStackEntry.arguments?.getString("campsiteId") ?: ""
@@ -78,14 +63,6 @@ fun ToastyTravelToolsApp() {
                 campsiteId = campsiteId, 
                 onBack = { navController.popBackStack() }, 
                 onError = {}
-            )
-        }
-        
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
             )
         }
         
@@ -100,41 +77,18 @@ fun ToastyTravelToolsApp() {
             }
         }
 
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
         composable("reservation") {
             ReservationScreen( 
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
                 onSearchClick = { navController.navigate("search") }, 
                 onReservationClick = { navController.navigate("reservation") }, 
                 onProfileClick = { navController.navigate("profile") }
             )
         }
         
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
         composable("profile") {
             ProfileScreen(
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
                 userId = "test", 
                 onSearchClick = { navController.navigate("search") }, 
                 onReservationClick = { navController.navigate("reservation") }, 
