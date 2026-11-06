@@ -5,11 +5,14 @@ import com.google.firebase.firestore.DocumentId
 data class Lottery(
     @DocumentId var id: String = "",
     var campsiteIds: List<String> = emptyList(),
+    val lotteryName: String = "",
     var ownerId: String = "",
     var registrationStart: Timestamp? = null,
     var registrationEnd: Timestamp? = null,
+    var bookingStartDate: Timestamp? = null,
+    var bookingEndDate: Timestamp? = null,
     var numberOfWinners: Int = 0,
-    var waitList: List<String> = emptyList(),
+    var waitlist: List<String> = emptyList(),
     var waitlistCapacity: Int? = null,
     var status: String = ""
 )

@@ -34,12 +34,36 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Locale
 import android.util.Log
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Scaffold
+import androidx.compose.ui.graphics.RectangleShape
+import com.google.firebase.firestore.DocumentSnapshot
 
-// display of one campsite card after the search
-@Composable
-fun DisplayCampsite(Campsite: Campsite) {
-    Text("Results for: $Campsite")
+// helper to safely parse campsites that might have been saved with either capitalized or lowercase keys
+fun DocumentSnapshot.toCampsiteSafely(): Campsite {
+    val name = getString("Name") ?: getString("name") ?: ""
+    val desc = getString("Description") ?: getString("description") ?: ""
+    val loc = getString("Location") ?: getString("location") ?: ""
+    val limit = getLong("OccupancyLimit") ?: getLong("occupancyLimit") ?: 0L
+    val imagesUrl = getString("ImagesUrl") ?: getString("imagesUrl") ?: ""
+    val rating = getDouble("Rating") ?: getDouble("rating") ?: 0.0
+    val tags = (get("Tags") as? List<*>)?.mapNotNull { it as? String }
+        ?: (get("tags") as? List<*>)?.mapNotNull { it as? String }
+        ?: emptyList()
+    val qrCodeUrl = getString("QrCodeUrl") ?: getString("qrCodeUrl") ?: ""
 
+    return Campsite(
+        id = id,
+        Name = name,
+        Description = desc,
+        Location = loc,
+        OccupancyLimit = limit.toInt(),
+        ImagesUrl = imagesUrl,
+        Rating = rating,
+        Tags = tags,
+        QrCodeUrl = qrCodeUrl
+    )
 }
 
 // searches for campsites by name
@@ -52,8 +76,13 @@ fun searchCampsite(
         .collection("campsites")
         .get()
         .addOnSuccessListener { snapshot ->
-            val matches = snapshot.toObjects(Campsite::class.java)
-                .filter { it.Name.contains(query, ignoreCase = true) }
+            val matches = snapshot.documents.map { it.toCampsiteSafely() }
+                .filter { 
+                    it.Name.contains(query, ignoreCase = true) ||
+                    it.Description.contains(query, ignoreCase = true) ||
+                    it.Location.contains(query, ignoreCase = true) ||
+                    it.Tags.any { tag -> tag.contains(query, ignoreCase = true) }
+                }
             onResult(matches)
         }
         .addOnFailureListener { onError(it) }
@@ -64,6 +93,7 @@ fun filter_search(
     location: String,
     date: String,
     numGuests: Int,
+    tags: String,
     onResult: (List<Campsite>) -> Unit,
     onError: (Exception) -> Unit
 ) {
@@ -75,9 +105,25 @@ fun filter_search(
         .addOnSuccessListener { campsiteSnap ->
             // read the raw fields so this works with the capitalized names in the console
             val campsites = campsiteSnap.documents.filter { doc ->
-                val loc = doc.getString("Location") ?: ""
-                val limit = doc.getLong("OccupancyLimit") ?: 0L
-                loc.contains(location, ignoreCase = true) && limit >= numGuests
+                val loc = doc.getString("Location") ?: doc.getString("location") ?: ""
+                val limit = doc.getLong("OccupancyLimit") ?: doc.getLong("occupancyLimit") ?: 0L
+                val docTags = (doc.get("Tags") as? List<*>)?.mapNotNull { it as? String } 
+                    ?: (doc.get("tags") as? List<*>)?.mapNotNull { it as? String } 
+                    ?: emptyList()
+
+                val locMatch = loc.contains(location, ignoreCase = true)
+                val limitMatch = limit >= numGuests
+                
+                val searchTagsList = tags.split(",").map { it.trim() }.filter { it.isNotBlank() }
+                val tagsMatch = if (searchTagsList.isEmpty()) {
+                    true
+                } else {
+                    searchTagsList.any { searchTag -> 
+                        docTags.any { it.contains(searchTag, ignoreCase = true) } 
+                    }
+                }
+
+                locMatch && limitMatch && tagsMatch
             }
             Log.d("FilterDebug", "location/guests matches: ${campsites.map { it.id }}")
 
@@ -108,15 +154,19 @@ fun filter_search(
                         .addOnSuccessListener { resSnap ->
                             val bookedNames = resSnap.documents
                                 .filter { doc ->
-                                    val start = doc.getString("startDate") ?: ""
-                                    val end = doc.getString("endDate") ?: ""
+                                    val start = doc.getString("startDate") ?: doc.getString("StartDate") ?: ""
+                                    val end = doc.getString("endDate") ?: doc.getString("EndDate") ?: ""
+                                    if (start.isBlank() || end.isBlank()) return@filter false
                                     start <= date && date <= end
                                 }
                                 .map { it.getString("campsiteName") ?: "" }
 
                             val matches = withLottery
-                                .filter { (it.getString("Name") ?: "") !in bookedNames }
-                                .mapNotNull { it.toObject(Campsite::class.java) }
+                                .filter { 
+                                    val name = it.getString("Name") ?: it.getString("name") ?: ""
+                                    name !in bookedNames 
+                                }
+                                .map { it.toCampsiteSafely() }
                             Log.d("FilterDebug", "final matches: ${matches.size}")
                             onResult(matches)
                         }
@@ -139,39 +189,92 @@ fun filter_search(
 fun CampsiteRow(
     campsite: Campsite,
     onClick: ()-> Unit
-                ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable {
-                    onClick() }
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Text(
-                text = campsite.Name,
-                fontSize = 18.sp,
-            )
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                onClick() }
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        Text(
+            text = campsite.Name,
+            fontSize = 18.sp,
+        )
 
-            Text(
-                text = campsite.Location,
-                fontSize = 14.sp,
-            )
+        Text(
+            text = campsite.Location,
+            fontSize = 14.sp,
+        )
 
+        if (campsite.Tags.isNotEmpty()) {
             Text(
-                text = "Guests Limit: ${campsite.OccupancyLimit}",
-                fontSize = 14.sp,
-            )
-
-            Text(
-                text = "Rating: ${campsite.Rating}",
-                fontSize = 14.sp,
+                text = "Tags: ${campsite.Tags.joinToString(", ")}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.secondary
             )
         }
+
+        Text(
+            text = "Guests Limit: ${campsite.OccupancyLimit}",
+            fontSize = 14.sp,
+        )
+
+        Text(
+            text = "Rating: ${campsite.Rating}",
+            fontSize = 14.sp,
+        )
+    }
+}
+
+// the three buttons pinned to the bottom of the screen
+@Composable
+fun BottomButtons_Search(
+    onSearchClick: () -> Unit,
+    onReservationClick: () -> Unit,
+    onProfileClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        // filled button = the screen you're on
+        Button(
+            onClick = onSearchClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Search", maxLines = 1)
+        }
+        OutlinedButton(
+            onClick = onReservationClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Reservation", maxLines = 1)
+        }
+        OutlinedButton(
+            onClick = onProfileClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Profile", maxLines = 1)
+        }
+    }
 }
 
 @Composable
 fun SearchScreen(
-    onCampsiteClick: (String) -> Unit
+    onCampsiteClick: (String) -> Unit,
+    onSearchClick: () -> Unit = {},
+    onReservationClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
 ) {
     var searchClicked by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
@@ -181,145 +284,165 @@ fun SearchScreen(
     var filter_location by remember { mutableStateOf("") }
     var filter_date by remember { mutableStateOf("") }
     var filter_num_guests by remember { mutableStateOf("") }
+    var filter_tags by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .padding(top = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (!searchClicked) {
-            Button(onClick = { searchClicked = true }) {
-                Text("Search")
-            }
-        } else {
-            // search bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = search,
-                    onValueChange = { search = it },
-                    label = { Text("Search for campsite") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f)
-                )
-                Button(
-                    onClick = {
-                        if (search.isNotBlank()) {
-                            searchCampsite(
-                                query = search,
-                                onResult = {
-                                    results = it
-                                    hasSearched = true
-                                },
-                                onError = {
-                                    results = listOf()
-                                    hasSearched = true
-                                }
-                            )
-                        }
-                    }
-                ) {
-                    Text("Search")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedButton(
-                onClick = { filter = !filter },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (filter){
-                    Text("Hide filters")
-                } else if (!filter) {
-                    Text("Filter")
-                }
-            }
-
-            // filter options
-            if (filter) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = filter_location,
-                            onValueChange = { filter_location = it },
-                            label = { Text("Location") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = filter_date,
-                            onValueChange = { filter_date = it },
-                            label = { Text("Date (yyyy-MM-dd)") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        OutlinedTextField(
-                            value = filter_num_guests,
-                            onValueChange = { filter_num_guests = it },
-                            label = { Text("Number of guests") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Button(
-                            onClick = {
-                                if (filter_location.isNotBlank() &&
-                                    filter_date.isNotBlank() &&
-                                    filter_num_guests.isNotBlank()
-                                ) {
-                                    filter_search(
-                                        location = filter_location,
-                                        date = filter_date,
-                                        numGuests = filter_num_guests.toIntOrNull() ?: 0,
-                                        onResult = {
-                                            results = it
-                                            hasSearched = true
-                                        },
-                                        onError = {
-                                            results = listOf()
-                                            hasSearched = true
-                                        }
-                                    )
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Apply filters")
-                        }
-                    }
-                }
-            }
+    Scaffold(
+        bottomBar = {
+            BottomButtons_Search(
+                onSearchClick = onSearchClick,
+                onReservationClick = onReservationClick,
+                onProfileClick = onProfileClick
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(horizontal = 16.dp)
+                .padding(top = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // results
-            if (hasSearched) {
-                if (results.isEmpty()) {
-                    Text(
-                        text = "No campsites found",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(top = 16.dp)
+            if (!searchClicked) {
+                Button(onClick = { searchClicked = true }) {
+                    Text("Search")
+                }
+            } else {
+                // search bar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = search,
+                        onValueChange = { search = it },
+                        label = { Text("Search for campsite") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
                     )
-                } else {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(results) { campsite ->
-                            CampsiteRow(
-                                campsite = campsite,
-                                onClick = { onCampsiteClick(campsite.id)}
+                    Button(
+                        onClick = {
+                            if (search.isNotBlank()) {
+                                searchCampsite(
+                                    query = search,
+                                    onResult = {
+                                        results = it
+                                        hasSearched = true
+                                    },
+                                    onError = {
+                                        results = listOf()
+                                        hasSearched = true
+                                    }
+                                )
+                            }
+                        }
+                    ) {
+                        Text("Search")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { filter = !filter },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (filter){
+                        Text("Hide filters")
+                    } else if (!filter) {
+                        Text("Filter")
+                    }
+                }
+
+                // filter options
+                if (filter) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = filter_location,
+                                onValueChange = { filter_location = it },
+                                label = { Text("Location") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
                             )
+                            OutlinedTextField(
+                                value = filter_date,
+                                onValueChange = { filter_date = it },
+                                label = { Text("Date (yyyy-MM-dd)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = filter_num_guests,
+                                onValueChange = { filter_num_guests = it },
+                                label = { Text("Number of guests") },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = filter_tags,
+                                onValueChange = { filter_tags = it },
+                                label = { Text("Tags (comma separated)") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Button(
+                                onClick = {
+                                    if (filter_location.isNotBlank() &&
+                                        filter_date.isNotBlank() &&
+                                        filter_num_guests.isNotBlank()
+                                    ) {
+                                        filter_search(
+                                            location = filter_location,
+                                            date = filter_date,
+                                            numGuests = filter_num_guests.toIntOrNull() ?: 0,
+                                            tags = filter_tags,
+                                            onResult = {
+                                                results = it
+                                                hasSearched = true
+                                            },
+                                            onError = {
+                                                results = listOf()
+                                                hasSearched = true
+                                            }
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Apply filters")
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // results
+                if (hasSearched) {
+                    if (results.isEmpty()) {
+                        Text(
+                            text = "No campsites found",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(top = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(results) { campsite ->
+                                CampsiteRow(
+                                    campsite = campsite,
+                                    onClick = { onCampsiteClick(campsite.id)}
+                                )
+                            }
                         }
                     }
                 }
