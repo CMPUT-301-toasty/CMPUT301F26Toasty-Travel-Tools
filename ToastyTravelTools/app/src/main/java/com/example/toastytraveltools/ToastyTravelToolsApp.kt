@@ -97,7 +97,8 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
             } else {
                 Text("Loading...")
             }
-        
+        }
+
         composable("owner_create_lottery") {
             OwnerScreenCreateLottery(
                 lotteryRepository = lotteryRepository,
@@ -105,7 +106,7 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
                 onNavigateBack = { navController.popBackStack() }
             )
         }
-        }
+
         
         composable("owner_create_lottery") {
             OwnerScreenCreateLottery(
