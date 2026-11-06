@@ -149,8 +149,7 @@ fun CampsiteDetailsScreen(
         LaunchedEffect(snapshot_campsite.id) {
             FirebaseFirestore.getInstance()
                 .collection("lotteries")
-                .whereArrayContains("campsite_id", snapshot_campsite.id)
-                .whereEqualTo("status", "OPEN")
+                .whereArrayContains("campsiteIds", snapshot_campsite.id)
                 .get()
                 .addOnSuccessListener { snapshot ->
                     val now = Timestamp.now()

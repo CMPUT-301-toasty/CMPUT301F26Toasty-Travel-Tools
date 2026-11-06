@@ -10,6 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import android.provider.Settings
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.controller.LotteryRepository
 import com.example.toastytraveltools.model.Campsite
@@ -74,6 +76,8 @@ fun OwnerScreenAddCampsite(
     repository: CampsiteRepository,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     var name by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
@@ -180,7 +184,8 @@ fun OwnerScreenAddCampsite(
                         OccupancyLimit = occupancyInt,
                         ImagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
                         Tags = tagList,
-                        QrCodeUrl = generatedQrUrl
+                        QrCodeUrl = generatedQrUrl,
+                        ownerId = deviceId
                     )
 
                     repository.addCampsite(
@@ -211,12 +216,23 @@ fun OwnerScreenCreateLottery(
     campsiteRepository: CampsiteRepository,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+    
+    // Get all campsites and filter by this owner
+    val allCampsites = campsiteRepository.campsites
+    val myCampsites = remember(allCampsites) {
+        allCampsites.filter { it.ownerId == deviceId }
+    }
+
     var campsiteId by remember { mutableStateOf("") }
     var registrationStart by remember { mutableStateOf("") }
     var registrationEnd by remember { mutableStateOf("") }
     var bookingStart by remember { mutableStateOf("") }
     var bookingEnd by remember { mutableStateOf("") }
     var numberOfWinners by remember { mutableStateOf("") }
+    
+    var expanded by remember { mutableStateOf(false) }
     
     var errorMessage by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
@@ -245,12 +261,34 @@ fun OwnerScreenCreateLottery(
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
             }
 
-            OutlinedTextField(
-                value = campsiteId,
-                onValueChange = { campsiteId = it },
-                label = { Text("Campsite ID *") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = if (campsiteId.isNotBlank()) { myCampsites.find { it.id == campsiteId }?.Name ?: campsiteId } else { "" },
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Campsite *") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    myCampsites.forEach { site ->
+                        DropdownMenuItem(
+                            text = { Text(site.Name) },
+                            onClick = {
+                                campsiteId = site.id
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = registrationStart,
@@ -331,7 +369,7 @@ fun OwnerScreenCreateLottery(
                     
                     val newLottery = Lottery(
                         campsiteIds = listOf(campsiteId),
-                        ownerId = "owner123", // mocked for now until auth is fully piped
+                        ownerId = deviceId,
                         registrationStart = Timestamp(regStart),
                         registrationEnd = Timestamp(regEnd),
                         bookingStartDate = Timestamp(bookStart),

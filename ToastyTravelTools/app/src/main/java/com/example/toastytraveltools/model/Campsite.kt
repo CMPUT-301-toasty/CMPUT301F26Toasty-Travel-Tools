@@ -11,5 +11,6 @@ data class Campsite (
     val ImagesUrl: String = "",
     val Rating: Double = 0.0,
     val Tags: List<String> = emptyList(),
-    val QrCodeUrl: String = ""
+    val QrCodeUrl: String = "",
+    val ownerId: String = ""
 )
