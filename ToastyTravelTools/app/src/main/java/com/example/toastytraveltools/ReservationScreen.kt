@@ -28,6 +28,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -56,6 +59,22 @@ fun loadReservations(
         }
         .addOnFailureListener { onError(it) }
 }
+
+// cancels a reservation by removing it from the database
+// the reservation no longer blocks its dates, so the campsite is available again
+fun cancelReservation(
+    reservationId: String,
+    onDone: () -> Unit,
+    onError: (Exception) -> Unit
+) {
+    FirebaseFirestore.getInstance()
+        .collection("reservations")
+        .document(reservationId)
+        .delete()
+        .addOnSuccessListener { onDone() }
+        .addOnFailureListener { onError(it) }
+}
+
 
 @Composable
 fun BottomButtons_Reservation(
@@ -109,6 +128,8 @@ fun ReservationScreen (
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     var reservations by remember { mutableStateOf(listOf<Reservation>()) }
+    // the active reservation the user tapped, waiting for them to confirm the cancel
+    var selected by remember { mutableStateOf<Reservation?>(null) }
 
     LaunchedEffect(deviceId) {
         Log.d("ReservationDebug", "this device's id: $deviceId")
@@ -126,6 +147,44 @@ fun ReservationScreen (
         .sortedBy { it.startDate }
     val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
+
+    // confirmation dialog, shown after the user taps an active reservation
+    val toCancel = selected
+    if (toCancel != null) {
+        AlertDialog(
+            onDismissRequest = { selected = null },
+            title = { Text("Cancel reservation?") },
+            text = {
+                Text(
+                    "Are you sure you want to cancel your stay at ${toCancel.campsiteName} from " +
+                            "${fmt.format(toCancel.startDate.toDate())} to " +
+                            "${fmt.format(toCancel.endDate.toDate())}? This action cannot be undone."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        cancelReservation(
+                            reservationId = toCancel.id,
+                            onDone = {
+                                // remove it from the active list
+                                reservations = reservations.filter { it.id != toCancel.id }
+                                selected = null
+                            },
+                            onError = { selected = null }
+                        )
+                    }
+                ) {
+                    Text("Yes, cancel")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selected = null }) {
+                    Text("Keep it")
+                }
+            }
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -191,7 +250,11 @@ fun ReservationScreen (
             } else {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(shown) { reservation ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
                                     text = reservation.campsiteName,
@@ -202,8 +265,22 @@ fun ReservationScreen (
                                     text = "${fmt.format(reservation.startDate.toDate())} to ${fmt.format(reservation.endDate.toDate())}",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
+
+                                if (active_clicked) {
+                                    Button(
+                                        onClick = { selected = reservation },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error
+                                        ),
+                                        shape = RectangleShape
+                                    ) {
+                                        Text("Cancel Reservation")
+                                    }
+                                }
                             }
                         }
+
                     }
                 }
             }
