@@ -43,6 +43,7 @@ fun drawLottery(
                 "status" to "drawn",
                 "winners" to winners,
                 "notifiedWinners" to emptyList<String>(),
+                "notifiedLosers" to emptyList<String>(),
                 "waitlist" to lottery.waitlist.filter { it !in winners },
                 "spotsRemaining" to winners.size.toLong(),
                 "drawnAt" to Timestamp.now()
@@ -181,7 +182,15 @@ fun claimLotterySpot(
         .addOnFailureListener { onError(it) }
 }
 
-// lotteries this entrant won and hasn't claimed yet, that still have spots left
+// finds the name of the lottery's campsite, empty if it can't be found
+private fun withCampsiteName(lottery: Lottery, onResult: (String) -> Unit) {
+    val campsiteId = lottery.campsiteIds.firstOrNull()
+    if (campsiteId == null) {
+        onResult("")
+    } else {
+        loadCampsiteName(campsiteId, onResult)
+    }
+}
 
 fun loadCampsiteName(
     campsiteId: String,
@@ -194,6 +203,7 @@ fun loadCampsiteName(
         .addOnSuccessListener { doc ->
             onResult(doc.toObject(Campsite::class.java)?.name ?: "")
         }
+        .addOnFailureListener { onResult("") }
 }
 
 fun loadClaimableLotteries(
@@ -277,21 +287,73 @@ fun listenForLotteryWins(
                             if (!enabled) return@addOnSuccessListener
 
                             // look up which campsite they won
-                            val campsiteId = lottery.campsiteIds.firstOrNull()
-                            if (campsiteId == null) {
-                                LotteryNotifier.send(context, lottery, true)
-                            } else {
-                                db.collection("campsites").document(campsiteId).get()
-                                    .addOnSuccessListener { campsite ->
-                                        LotteryNotifier.send(
-                                            context = context,
-                                            l = lottery,
-                                            win = true
-                                        )
-                                    }
+                            // look up which campsite they won
+                            withCampsiteName(lottery) { campsiteName ->
+                                LotteryNotifier.send(context, lottery, true, campsiteName)
                             }
                         }
                 }
             }
+        }
+}
+
+
+// listens for drawn lotteries this entrant didn't win and sends one "you did not win" notification
+fun listenForLotteryLosses(
+    context: Context,
+    entrantId: String
+): ListenerRegistration {
+
+    val db = FirebaseFirestore.getInstance()
+
+    // after the draw, everyone who didn't win is left on the waitlist
+    return db.collection("lotteries")
+        .whereArrayContains("waitlist", entrantId)
+        .addSnapshotListener { snapshot, error ->
+
+            if (error != null) return@addSnapshotListener
+
+            snapshot?.toObjects(Lottery::class.java)
+                ?.filter { it.status == "drawn" && it.ownerId != entrantId }
+                ?.forEach { lottery ->
+
+                    if (entrantId in lottery.notifiedLosers) return@forEach
+
+                    val lotteryRef = db.collection("lotteries").document(lottery.id)
+
+                    // add this entrant to the notified list first so it is only ever sent once
+                    db.runTransaction { tx ->
+                        val fresh = tx.get(lotteryRef).toObject(Lottery::class.java)
+
+                        if (fresh == null || fresh.status != "drawn" ||
+                            entrantId in fresh.notifiedLosers
+                        ) {
+                            false
+                        } else {
+                            tx.update(
+                                lotteryRef,
+                                "notifiedLosers",
+                                FieldValue.arrayUnion(entrantId)
+                            )
+                            true
+                        }
+                    }.addOnSuccessListener { claimed ->
+                        if (!claimed) return@addOnSuccessListener
+
+                        // people who turned notifications off don't get one
+                        db.collection("entrants").document(entrantId).get()
+                            .addOnSuccessListener { profile ->
+                                val enabled = profile.toObject(UserProfile::class.java)
+                                    ?.notificationsEnabled ?: true
+                                if (enabled) {
+                                    if (enabled) {
+                                        withCampsiteName(lottery) { campsiteName ->
+                                            LotteryNotifier.send(context, lottery, false, campsiteName)
+                                        }
+                                    }
+                                }
+                            }
+                    }
+                }
         }
 }
