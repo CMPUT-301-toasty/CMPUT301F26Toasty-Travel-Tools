@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -31,6 +31,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.OutlinedButton
+import com.example.toastytraveltools.model.Campsite
+import com.example.toastytraveltools.model.Lottery
 
 
 // this screen appears when the user clicks on the specific row

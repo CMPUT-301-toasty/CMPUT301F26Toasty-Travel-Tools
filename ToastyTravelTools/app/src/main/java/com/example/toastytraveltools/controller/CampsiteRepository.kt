@@ -1,10 +1,12 @@
 
-package com.example.toastytraveltools
+package com.example.toastytraveltools.controller
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import com.example.toastytraveltools.model.Campsite
+import com.example.toastytraveltools.view.toCampsiteSafely
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.DocumentReference
@@ -55,7 +57,7 @@ class CampsiteRepository {
         campsitesRef.document(campsite.id).delete()
     }
 
-    // Delete campsite and its associated reservations and lottery references
+    // Delete campsite and associated reservations and lottery references
     fun deleteCampsiteAndRelatedData(
         campsite: Campsite,
         onSuccess: () -> Unit,
@@ -71,13 +73,11 @@ class CampsiteRepository {
         val reservationsRef = db.collection("reservations")
         val lotteriesRef = db.collection("lotteries")
 
-        // Reservations currently identify campsites by name.
         reservationsRef
             .whereEqualTo("campsiteName", campsite.Name)
             .get()
             .addOnSuccessListener { reservationSnapshot ->
 
-                // Support both lottery field names found in the project.
                 lotteriesRef
                     .whereArrayContains("campsite_id", campsite.id)
                     .get()
@@ -95,7 +95,6 @@ class CampsiteRepository {
                                                         camelCaseSnapshot.documents
                                                 ).distinctBy { it.id }
 
-                                    // Prepare lottery updates before making writes.
                                     val lotteryUpdates = mutableListOf<
                                             Pair<
                                                     DocumentReference,
@@ -135,7 +134,6 @@ class CampsiteRepository {
                                                 }
                                             }
 
-                                        // Delete lottery only when no campsite remains.
                                         val deleteLottery =
                                             updatedFields.values.all { it.isEmpty() }
 
@@ -149,7 +147,6 @@ class CampsiteRepository {
                                     val reservationCount =
                                         reservationSnapshot.documents.size
 
-                                    // Firestore batches have a 500-write limit.
                                     val lotteryWriteCount =
                                         lotteryUpdates.sumOf { (_, updates) ->
                                             if (updates == null) 1
@@ -168,12 +165,12 @@ class CampsiteRepository {
 
                                     val batch = db.batch()
 
-                                    // Delete associated reservations.
+                                    // Delete associated reservations
                                     reservationSnapshot.documents.forEach { document ->
                                         batch.delete(document.reference)
                                     }
 
-                                    // Update or delete associated lotteries.
+                                    // Update or delete associated lotteries
                                     lotteryUpdates.forEach { (reference, updates) ->
 
                                         if (updates == null) {
@@ -189,7 +186,7 @@ class CampsiteRepository {
                                         }
                                     }
 
-                                    // Delete the campsite last.
+                                    // Delete the campsite
                                     batch.delete(
                                         campsitesRef.document(campsite.id)
                                     )
@@ -219,7 +216,7 @@ class CampsiteRepository {
             }
     }
 
-    // Automatically listen for campsite changes.
+    // Listen for campsite changes
     init {
         campsitesRef.addSnapshotListener { snapshot, error ->
 

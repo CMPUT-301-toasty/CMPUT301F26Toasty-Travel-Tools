@@ -1,7 +1,8 @@
 
-package com.example.toastytraveltools
+package com.example.toastytraveltools.controller
 
 import androidx.compose.runtime.mutableStateListOf
+import com.example.toastytraveltools.model.Reservation
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.firestore
@@ -9,18 +10,30 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private fun Any?.asReservationDate(): String {
+// Convert Firestore date values into Timestamp.
+// Supports existing Timestamp, Date and yyyy-MM-dd String values.
+private fun Any?.asReservationTimestamp(): Timestamp {
     return when (this) {
-        is String -> this
-        is Timestamp -> SimpleDateFormat(
-            "yyyy-MM-dd",
-            Locale.getDefault()
-        ).format(toDate())
-        is Date -> SimpleDateFormat(
-            "yyyy-MM-dd",
-            Locale.getDefault()
-        ).format(this)
-        else -> ""
+        is Timestamp -> this
+
+        is Date -> Timestamp(this)
+
+        is String -> {
+            try {
+                val date = SimpleDateFormat(
+                    "yyyy-MM-dd",
+                    Locale.getDefault()
+                ).parse(this)
+
+                if (date != null) Timestamp(date)
+                else Timestamp(0, 0)
+
+            } catch (e: Exception) {
+                Timestamp(0, 0)
+            }
+        }
+
+        else -> Timestamp(0, 0)
     }
 }
 
@@ -44,14 +57,17 @@ class ReservationRepository {
             _reservations.clear()
 
             snapshot?.documents?.forEach { document ->
+
                 try {
                     val reservation = Reservation(
                         id = document.id,
                         campsiteName = document.getString("campsiteName") ?: "",
                         location = document.getString("location") ?: "",
                         entrantName = document.getString("entrantName") ?: "",
-                        startDate = document.get("startDate").asReservationDate(),
-                        endDate = document.get("endDate").asReservationDate(),
+                        startDate = document.get("startDate")
+                            .asReservationTimestamp(),
+                        endDate = document.get("endDate")
+                            .asReservationTimestamp(),
                         guests = (document.get("guests") as? Number)?.toInt() ?: 0
                     )
 
@@ -68,9 +84,15 @@ class ReservationRepository {
         reservation: Reservation,
         onSaved: (String) -> Unit
     ) {
-        reservationsRef.add(reservation)
-            .addOnSuccessListener { document ->
-                onSaved(document.id)
+        val documentRef = reservationsRef.document()
+
+        val newReservation = reservation.copy(
+            id = documentRef.id
+        )
+
+        documentRef.set(newReservation)
+            .addOnSuccessListener {
+                onSaved(documentRef.id)
             }
     }
 }
