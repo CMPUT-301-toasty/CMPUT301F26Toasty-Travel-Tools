@@ -1,4 +1,17 @@
-
+/**
+ * AdminCampsitesScreen.kt
+ *
+ * Purpose:
+ * Allows administrators to browse registered campsites, view their
+ * details, and remove campsites.
+ *
+ * Design:
+ * Uses Jetpack Compose for the interface and CampsiteRepository
+ * for campsite data management.
+ *
+ * Outstanding issues:
+ * Reservation matching currently uses campsite names rather than IDs.
+ */
 package com.example.toastytraveltools
 
 import com.example.toastytraveltools.controller.CampsiteRepository
@@ -12,6 +25,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 
+/**
+ * Displays registered campsites and provides administrative controls.
+ *
+ * Administrators can view campsite details and request campsite removal.
+ * A confirmation dialog is displayed before deletion.
+ *
+ * @param repository Repository providing campsite data and deletion operations.
+ * @param onBack Callback used to return to the Admin Dashboard.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminCampsitesScreen(

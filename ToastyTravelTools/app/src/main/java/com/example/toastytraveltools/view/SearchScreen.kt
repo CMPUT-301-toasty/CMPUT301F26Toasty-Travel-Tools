@@ -52,7 +52,11 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
     val loc = getString("Location") ?: getString("location") ?: ""
     val limit = getLong("OccupancyLimit") ?: getLong("occupancyLimit") ?: 0L
     val imagesUrl = getString("ImagesUrl") ?: getString("imagesUrl") ?: ""
-    val rating = getDouble("Rating") ?: getDouble("rating") ?: 0.0
+    val rating = (get("Rating") as? Number)?.toDouble()
+        ?: (get("rating") as? Number)?.toDouble()
+        ?: getString("Rating")?.toDoubleOrNull()
+        ?: getString("rating")?.toDoubleOrNull()
+        ?: 0.0
     val tags = (get("Tags") as? List<*>)?.mapNotNull { it as? String }
         ?: (get("tags") as? List<*>)?.mapNotNull { it as? String }
         ?: emptyList()

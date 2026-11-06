@@ -44,23 +44,60 @@ import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.UserProfile
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+/**
+ * ProfileScreen.kt
+ *
+ * Purpose:
+ * Displays and manages entrant profile information and preferences.
+ *
+ * Design:
+ * Uses Jetpack Compose for the interface and Firebase Firestore
+ * for loading and saving profile information.
+ *
+ * Outstanding issues:
+ * Profile deletion currently does not automatically navigate away
+ * from the screen.
+ */
 
+/**
+ * Checks whether a profile name is valid.
+ *
+ * @param name Name entered by the user.
+ * @return An error message if the name is blank, otherwise null.
+ */
 fun validateName(name: String): String? =
     if (name.isBlank()) "Name cannot be empty" else null
-
+/**
+ * Validates an email address using Android's email pattern.
+ *
+ * @param email Email address entered by the user.
+ * @return An error message if invalid, otherwise null.
+ */
 fun validateEmail(email: String): String? = when {
     email.isBlank() -> "Email cannot be empty"
     !Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() -> "Enter a valid email address"
     else -> null
 }
-
+/**
+ * Validates a phone number using Android's phone pattern and length.
+ *
+ * @param phone Phone number entered by the user.
+ * @return An error message if invalid, otherwise null.
+ */
 fun validatePhone(phone: String): String? = when {
     phone.isBlank() -> "Phone number cannot be empty"
     !Patterns.PHONE.matcher(phone.trim()).matches() -> "Enter a valid phone number"
     phone.count() !in 10..15 -> "Enter a valid phone number"
     else -> null
 }
-
+/**
+ * Updates the notification preference for an entrant in Firestore.
+ *
+ * @param userId ID of the entrant.
+ * @param enabled Whether notifications should be enabled.
+ * @param onDone Callback invoked when the preference is saved.
+ * @param onError Callback invoked if saving fails.
+ */
 fun setNotificationsEnabled(
     userId: String,
     enabled: Boolean,
@@ -74,7 +111,13 @@ fun setNotificationsEnabled(
         .addOnSuccessListener { onDone() }
         .addOnFailureListener { onError(it) }
 }
-
+/**
+ * Loads an entrant's profile from Firestore.
+ *
+ * @param userId ID of the entrant whose profile is requested.
+ * @param onResult Callback receiving the loaded profile.
+ * @param onError Callback receiving an exception if loading fails.
+ */
 fun loadProfile(
     userId: String,
     onResult: (UserProfile) -> Unit,
@@ -89,7 +132,14 @@ fun loadProfile(
         }
         .addOnFailureListener { onError(it) }
 }
-
+/**
+ * Saves updated entrant profile information to Firestore.
+ *
+ * @param userId ID of the entrant.
+ * @param profile Updated profile information.
+ * @param onSaved Callback invoked after saving succeeds.
+ * @param onError Callback invoked if saving fails.
+ */
 fun saveProfile(
     userId: String,
     profile: UserProfile,
@@ -99,11 +149,16 @@ fun saveProfile(
     FirebaseFirestore.getInstance()
         .collection("entrants")
         .document(userId)
-        .set(profile)
+        .set(profile, SetOptions.merge())
         .addOnSuccessListener { onSaved() }
         .addOnFailureListener { onError(it) }
 }
-
+/**
+ * Deletes an entrant's profile document from Firestore.
+ *
+ * @param userId ID of the entrant whose profile should be deleted.
+ * @param onDeleted Callback invoked after deletion succeeds.
+ */
 fun deleteProfile(
     userId: String,
     onDeleted: () -> Unit
@@ -117,7 +172,14 @@ fun deleteProfile(
         }
 }
 
-
+/**
+ * Displays the navigation buttons for the search, reservation,
+ * and profile screens.
+ *
+ * @param onSearchClick Callback for opening the search screen.
+ * @param onReservationClick Callback for opening reservations.
+ * @param onProfileClick Callback for opening the profile using the device ID.
+ */
 @Composable
 fun BottomButtons_Profile(
     onSearchClick: () -> Unit,
@@ -161,6 +223,16 @@ fun BottomButtons_Profile(
         }
     }
 }
+/**
+ * Displays the entrant's profile and allows editing of personal
+ * information and notification preferences.
+ *
+ * @param userId ID of the entrant whose profile is displayed.
+ * @param onSearchClick Callback for navigating to search.
+ * @param onNavigateBack Callback for navigating back.
+ * @param onReservationClick Callback for navigating to reservations.
+ * @param onProfileClick Callback for profile navigation using a device ID.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
@@ -172,7 +244,7 @@ fun ProfileScreen(
 ) {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
-
+    var campsiteDeletionNotice by remember { mutableStateOf<String?>(null) }
     var isEditing by remember { mutableStateOf(false) }
     var isViewingPolicy by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
@@ -194,6 +266,15 @@ fun ProfileScreen(
             onResult = { profile = it },
             onError = { loadError = "Could not load profile: ${it.message}" }
         )
+
+        FirebaseFirestore.getInstance()
+            .collection("entrants")
+            .document(userId)
+            .get()
+            .addOnSuccessListener { doc ->
+                campsiteDeletionNotice =
+                    doc.getString("campsiteDeletionNotice")
+            }
     }
 
     Scaffold(
@@ -224,7 +305,12 @@ fun ProfileScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text("Profile", style = MaterialTheme.typography.headlineMedium)
-
+            campsiteDeletionNotice?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             val current = profile
 
             when {

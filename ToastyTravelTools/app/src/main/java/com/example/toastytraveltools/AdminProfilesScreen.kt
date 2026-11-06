@@ -11,7 +11,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.example.toastytraveltools.model.AdminProfile
-
+/**
+ * AdminProfilesScreen.kt
+ *
+ * Purpose:
+ * Provides administrators with an interface for browsing registered profiles.
+ *
+ * Design:
+ * Uses Jetpack Compose to display and manage profile information.
+ *
+ * Outstanding issues:
+ * Profile deletion must also handle associated reservations and
+ * waitlist entries. Campsite ownership requires separate handling.
+ */
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
