@@ -1,4 +1,4 @@
-package com.example.toastytraveltools.ui.theme
+package com.example.toastytraveltools.view.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

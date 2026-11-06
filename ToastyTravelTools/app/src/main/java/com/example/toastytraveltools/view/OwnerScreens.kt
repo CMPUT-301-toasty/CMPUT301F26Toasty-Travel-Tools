@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,6 +10,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.example.toastytraveltools.controller.CampsiteRepository
+import com.example.toastytraveltools.controller.LotteryRepository
+import com.example.toastytraveltools.model.Campsite
+import com.example.toastytraveltools.model.Lottery
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale

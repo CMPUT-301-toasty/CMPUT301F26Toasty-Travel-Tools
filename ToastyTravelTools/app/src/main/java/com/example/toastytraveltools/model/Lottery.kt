@@ -1,7 +1,8 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.model
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.DocumentId
+
 data class Lottery(
     @DocumentId var id: String = "",
     var campsiteIds: List<String> = emptyList(),
