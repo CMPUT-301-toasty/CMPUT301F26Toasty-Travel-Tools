@@ -55,7 +55,7 @@ fun ToastyTravelToolsApp() {
                 onCampsiteClick = { id -> navController.navigate("details/$id") },
                 onSearchClick = { navController.navigate("search") },
                 onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { navController.navigate("profile") }
+                onProfileClick = { id -> navController.navigate("profile/$id") }
             ) 
         }
         
@@ -85,17 +85,18 @@ fun ToastyTravelToolsApp() {
                 onNavigateBack = { navController.popBackStack("home", inclusive = false) },
                 onSearchClick = { navController.navigate("search") },
                 onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { navController.navigate("profile") }
+                onProfileClick = { id -> navController.navigate("profile/$id") }
             )
         }
-        
-        composable("profile") {
+
+        composable("profile/{deviceId}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("deviceId") ?: ""
             ProfileScreen(
+                userId = id,
                 onNavigateBack = { navController.popBackStack("home", inclusive = false) },
-                userId = "test",
                 onSearchClick = { navController.navigate("search") },
                 onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { navController.navigate("profile") }
+                onProfileClick = { profileId -> navController.navigate("profile/$profileId") }
             )
         }
     }
