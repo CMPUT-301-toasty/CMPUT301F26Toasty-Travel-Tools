@@ -15,7 +15,27 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
     // this can always be changed
     NavHost(navController = navController, startDestination = "search") {
         composable("search") { SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id")}) }
+        composable("admin") {
+            AdminDashboardScreen(navController)
+        }
 
+        composable("admin_campsites") {
+            AdminCampsitesScreen(
+                onBack = { navController.navigate("admin") }
+            )
+        }
+
+        composable("admin_profiles") {
+            AdminProfilesScreen(
+                onBack = { navController.navigate("admin") }
+            )
+        }
+
+        composable("admin_images") {
+            AdminImagesScreen(
+                onBack = { navController.navigate("admin") }
+            )
+        }
 
         // details screen, pass in campsite id
         composable("details/{campsiteId}") { backStackEntry ->

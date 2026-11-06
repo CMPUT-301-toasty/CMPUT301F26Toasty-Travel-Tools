@@ -31,7 +31,7 @@ fun CampsiteDetailsScreen(campsiteId: String,
     var lottery by remember { mutableStateOf<Lottery?>(null)}
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
+    var canRate by remember { mutableStateOf(false) }
     LaunchedEffect(campsiteId) {
         FirebaseFirestore.getInstance()
             .collection("campsites")
@@ -63,6 +63,23 @@ fun CampsiteDetailsScreen(campsiteId: String,
         Spacer(Modifier.height(8.dp))
         Text(text = snapshot_campsite.Description)
 
+        LaunchedEffect(snapshot_campsite.Name, deviceId) {
+            FirebaseFirestore.getInstance()
+                .collection("reservations")
+                .whereEqualTo("campsiteId", campsiteId)
+                .whereEqualTo("entrantId", deviceId)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    canRate = !snapshot.isEmpty
+                }
+                .addOnFailureListener { onError(it) }
+        }
+
+        CampsiteRating(
+            campsiteId = campsiteId,
+            entrantId = deviceId,
+            canRate = canRate
+        )
 
         // search for the campsite_id to see if it exists inside of lotteries
         // if it exists, also check if today's date is within the registration start/end
