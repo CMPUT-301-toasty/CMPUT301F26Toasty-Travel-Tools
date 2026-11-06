@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import android.provider.Settings
 import android.util.Log
@@ -28,16 +28,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import com.example.toastytraveltools.model.Reservation
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.material3.AlertDialog
 
 // loads the reservations that belong to one entrant document, using the Reservation class
 fun loadReservations(
@@ -60,8 +62,6 @@ fun loadReservations(
         .addOnFailureListener { onError(it) }
 }
 
-// cancels a reservation by removing it from the database
-// the reservation no longer blocks its dates, so the campsite is available again
 fun cancelReservation(
     reservationId: String,
     onDone: () -> Unit,
@@ -74,7 +74,6 @@ fun cancelReservation(
         .addOnSuccessListener { onDone() }
         .addOnFailureListener { onError(it) }
 }
-
 
 @Composable
 fun BottomButtons_Reservation(
@@ -118,6 +117,7 @@ fun BottomButtons_Reservation(
 }
 @Composable
 fun ReservationScreen (
+    onNavigateBack: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
@@ -128,7 +128,6 @@ fun ReservationScreen (
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     var reservations by remember { mutableStateOf(listOf<Reservation>()) }
-    // the active reservation the user tapped, waiting for them to confirm the cancel
     var selected by remember { mutableStateOf<Reservation?>(null) }
 
     LaunchedEffect(deviceId) {
@@ -147,9 +146,8 @@ fun ReservationScreen (
         .sortedBy { it.startDate }
     val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
-
-    // confirmation dialog, shown after the user taps an active reservation
     val toCancel = selected
+
     if (toCancel != null) {
         AlertDialog(
             onDismissRequest = { selected = null },
@@ -158,7 +156,7 @@ fun ReservationScreen (
                 Text(
                     "Are you sure you want to cancel your stay at ${toCancel.campsiteName} from " +
                             "${fmt.format(toCancel.startDate.toDate())} to " +
-                            "${fmt.format(toCancel.endDate.toDate())}? This action cannot be undone."
+                            "${fmt.format(toCancel.endDate.toDate())}? This can't be undone."
                 )
             },
             confirmButton = {
@@ -167,8 +165,9 @@ fun ReservationScreen (
                         cancelReservation(
                             reservationId = toCancel.id,
                             onDone = {
-                                // remove it from the active list
-                                reservations = reservations.filter { it.id != toCancel.id }
+                                reservations = reservations.filter {
+                                    it.id != toCancel.id
+                                }
                                 selected = null
                             },
                             onError = { selected = null }
@@ -186,7 +185,19 @@ fun ReservationScreen (
         )
     }
 
+
     Scaffold(
+        topBar = {
+            @OptIn(ExperimentalMaterial3Api::class)
+            (TopAppBar(
+                title = { Text("Reservations") },
+                navigationIcon = {
+                    TextButton(onClick = onNavigateBack) {
+                        Text("Back")
+                    }
+                }
+            ))
+        },
         bottomBar = {
             BottomButtons_Reservation(
                 onSearchClick = onSearchClick,
@@ -194,66 +205,68 @@ fun ReservationScreen (
                 onProfileClick = onProfileClick
             )
         }
-    ){ innerPadding ->
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 40.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(
-                onClick = { active_clicked = true },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-                shape = RectangleShape,
-                colors = ButtonDefaults.buttonColors(
-                    if (active_clicked) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.secondary
-                    }
-                )
-            ) {
-                Text("Active")
-            }
-            Button(
-                onClick = { active_clicked = false },
-                modifier = Modifier.weight(1f),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-                shape = RectangleShape,
-                colors = ButtonDefaults.buttonColors(
-                    if (!active_clicked) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.secondary
-                    }
-                )
-            ) {
-                Text("Past")
-            }
-        }
+    ) { innerPadding ->
 
-        // the list of reservations, or a message when there is nothing to show
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(top = 130.dp, start = 16.dp, end = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+
+            // Active and Past buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = { active_clicked = true },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    shape = RectangleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        if (active_clicked) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.secondary
+                        }
+                    )
+                ) {
+                    Text("Active")
+                }
+
+                Button(
+                    onClick = { active_clicked = false },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    shape = RectangleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        if (!active_clicked) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.secondary
+                        }
+                    )
+                ) {
+                    Text("Past")
+                }
+            }
+
+            // Reservation list
             if (shown.isEmpty()) {
                 Text(
                     text = if (active_clicked) "No active reservations" else "No past reservations",
                     style = MaterialTheme.typography.bodyLarge
                 )
             } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     items(shown) { reservation ->
-
                         Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
@@ -261,8 +274,13 @@ fun ReservationScreen (
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
+
                                 Text(
-                                    text = "${fmt.format(reservation.startDate.toDate())} to ${fmt.format(reservation.endDate.toDate())}",
+                                    text = "${fmt.format(reservation.startDate.toDate())} to ${
+                                        fmt.format(
+                                            reservation.endDate.toDate()
+                                        )
+                                    }",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
 
@@ -280,12 +298,10 @@ fun ReservationScreen (
                                 }
                             }
                         }
-
                     }
                 }
             }
         }
     }
-
 
 }

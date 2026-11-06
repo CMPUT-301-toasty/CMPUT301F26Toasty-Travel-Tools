@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*

@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.model
 
 class UserProfile (
     val name: String = "",

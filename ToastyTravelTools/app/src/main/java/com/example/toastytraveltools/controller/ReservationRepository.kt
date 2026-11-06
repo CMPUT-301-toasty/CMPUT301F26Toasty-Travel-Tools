@@ -1,6 +1,7 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.controller
 
 import androidx.compose.runtime.mutableStateListOf
+import com.example.toastytraveltools.model.Reservation
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 

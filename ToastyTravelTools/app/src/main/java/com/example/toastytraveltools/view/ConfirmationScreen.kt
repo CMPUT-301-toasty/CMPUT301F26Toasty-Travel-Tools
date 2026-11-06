@@ -1,4 +1,4 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.example.toastytraveltools.model.Reservation
 
 @Composable
 fun ConfirmationScreen(reservation: Reservation) {
