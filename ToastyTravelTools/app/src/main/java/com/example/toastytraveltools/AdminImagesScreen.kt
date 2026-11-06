@@ -10,14 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-
-data class AdminImage(
-    val id: Int,
-    val title: String,
-    val belongsTo: String,
-    val category: String
-)
-
+import com.example.toastytraveltools.model.AdminImage
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminImagesScreen(onBack: () -> Unit) {
     val images = remember {
@@ -35,110 +29,119 @@ fun AdminImagesScreen(onBack: () -> Unit) {
         mutableStateOf<AdminImage?>(null)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Button(onClick = onBack) {
-            Text("Back to Dashboard")
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("User Profiles") },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("Back")
+                    }
+                }
+            )
         }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
 
-        Spacer(modifier = Modifier.height(12.dp))
+            // Keep the rest of your existing screen code below
+            Text(
+                "Uploaded Images",
+                style = MaterialTheme.typography.headlineMedium
+            )
 
-        // Keep the rest of your existing screen code below
-        Text(
-            "Uploaded Images",
-            style = MaterialTheme.typography.headlineMedium
-        )
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Text("Browse campsite and profile images")
 
-        Text("Browse campsite and profile images")
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (images.isEmpty()) {
-            Text("No uploaded images")
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(images, key = { it.id }) { image ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
+            if (images.isEmpty()) {
+                Text("No uploaded images")
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(images, key = { it.id }) { image ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(130.dp)
-                                    .background(Color.LightGray),
-                                contentAlignment = androidx.compose.ui.Alignment.Center
+                            Column(
+                                modifier = Modifier.padding(12.dp)
                             ) {
-                                Text("Image Preview")
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Text(
-                                image.title,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            Text("${image.category}: ${image.belongsTo}")
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Button(
-                                onClick = {
-                                    imageToRemove = image
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(130.dp)
+                                        .background(Color.LightGray),
+                                    contentAlignment = androidx.compose.ui.Alignment.Center
+                                ) {
+                                    Text("Image Preview")
                                 }
-                            ) {
-                                Text("Remove Image")
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    image.title,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+
+                                Text("${image.category}: ${image.belongsTo}")
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        imageToRemove = image
+                                    }
+                                ) {
+                                    Text("Remove Image")
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
 
-    if (imageToRemove != null) {
-        AlertDialog(
-            onDismissRequest = {
-                imageToRemove = null
-            },
-            title = {
-                Text("Remove image?")
-            },
-            text = {
-                Text(
-                    "Are you sure you want to remove " +
-                            "${imageToRemove!!.title}?"
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        images.remove(imageToRemove)
-                        imageToRemove = null
+        if (imageToRemove != null) {
+            AlertDialog(
+                onDismissRequest = {
+                    imageToRemove = null
+                },
+                title = {
+                    Text("Remove image?")
+                },
+                text = {
+                    Text(
+                        "Are you sure you want to remove " +
+                                "${imageToRemove!!.title}?"
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            images.remove(imageToRemove)
+                            imageToRemove = null
+                        }
+                    ) {
+                        Text("Remove")
                     }
-                ) {
-                    Text("Remove")
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = {
-                        imageToRemove = null
+                },
+                dismissButton = {
+                    OutlinedButton(
+                        onClick = {
+                            imageToRemove = null
+                        }
+                    ) {
+                        Text("Cancel")
                     }
-                ) {
-                    Text("Cancel")
                 }
-            }
-        )
+            )
+        }
     }
 }
