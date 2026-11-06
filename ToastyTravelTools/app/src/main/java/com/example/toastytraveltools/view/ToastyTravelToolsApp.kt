@@ -112,22 +112,12 @@ fun ToastyTravelToolsApp() {
         // Search screen
         composable("search") {
             SearchScreen(
-                onNavigateBack = {
-                    navController.popBackStack("home", inclusive = false)
-                },
-                onCampsiteClick = { id ->
-                    navController.navigate("details/$id")
-                },
-                onSearchClick = {
-                    navController.navigate("search")
-                },
-                onReservationClick = {
-                    navController.navigate("reservation")
-                },
-                onProfileClick = {
-                    navController.navigate("profile")
-                }
-            )
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
+                onCampsiteClick = { id -> navController.navigate("details/$id") },
+                onSearchClick = { navController.navigate("search") },
+                onReservationClick = { navController.navigate("reservation") },
+                onProfileClick = { id -> navController.navigate("profile/$id") }
+            ) 
         }
 
         // Campsite details
@@ -164,37 +154,21 @@ fun ToastyTravelToolsApp() {
         // Reservation screen
         composable("reservation") {
             ReservationScreen(
-                onNavigateBack = {
-                    navController.popBackStack("home", inclusive = false)
-                },
-                onSearchClick = {
-                    navController.navigate("search")
-                },
-                onReservationClick = {
-                    navController.navigate("reservation")
-                },
-                onProfileClick = {
-                    navController.navigate("profile")
-                }
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
+                onSearchClick = { navController.navigate("search") },
+                onReservationClick = { navController.navigate("reservation") },
+                onProfileClick = { id -> navController.navigate("profile/$id") }
             )
         }
 
-        // Profile screen
-        composable("profile") {
+        composable("profile/{deviceId}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("deviceId") ?: ""
             ProfileScreen(
-                userId = "test",
-                onNavigateBack = {
-                    navController.popBackStack("home", inclusive = false)
-                },
-                onSearchClick = {
-                    navController.navigate("search")
-                },
-                onReservationClick = {
-                    navController.navigate("reservation")
-                },
-                onProfileClick = {
-                    navController.navigate("profile")
-                }
+                userId = id,
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
+                onSearchClick = { navController.navigate("search") },
+                onReservationClick = { navController.navigate("reservation") },
+                onProfileClick = { profileId -> navController.navigate("profile/$profileId") }
             )
         }
     }

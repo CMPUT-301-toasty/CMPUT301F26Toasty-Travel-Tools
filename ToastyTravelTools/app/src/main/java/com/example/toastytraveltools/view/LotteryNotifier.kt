@@ -1,4 +1,4 @@
-package com.example.toastytraveltools.model
+package com.example.toastytraveltools.view
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -11,6 +11,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.toastytraveltools.R
+import com.example.toastytraveltools.model.Lottery
 
 object LotteryNotifier {
     private const val CHANNEL_ID = "lotteries"
