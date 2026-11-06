@@ -5,5 +5,6 @@ class UserProfile (
     val email: String = "",
     val phone: String = "",
     val deviceId: String = "",
-    val role: String = "entrant" // entrant, owner, or admin
+    val role: String = "entrant", // entrant, owner, or admin
+    val notificationsEnabled: Boolean = true
 )
