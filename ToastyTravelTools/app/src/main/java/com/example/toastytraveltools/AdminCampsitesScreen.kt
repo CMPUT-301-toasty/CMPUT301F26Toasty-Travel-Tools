@@ -1,3 +1,4 @@
+
 package com.example.toastytraveltools
 
 import androidx.compose.foundation.layout.*
@@ -9,100 +10,94 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.font.FontWeight
 
-data class AdminCampsite(
-    val name: String,
-    val location: String,
-    val owner: String,
-    val description: String
-)
-
-private val sampleCampsites = listOf(
-    AdminCampsite(
-        name = "Pine Creek Camp",
-        location = "Asheville, NC",
-        owner = "Maya Patel",
-        description = "A peaceful campsite surrounded by forests."
-    ),
-    AdminCampsite(
-        name = "Fern Valley Camp",
-        location = "Boone, NC",
-        owner = "Noah Reed",
-        description = "A scenic campsite with beautiful mountain views."
-    ),
-    AdminCampsite(
-        name = "Cedar Ridge Camp",
-        location = "Brevard, NC",
-        owner = "Evan Cole",
-        description = "A quiet campsite surrounded by nature."
-    )
-)
-
 @Composable
-fun AdminCampsitesScreen(onBack: () -> Unit) {
+fun AdminCampsitesScreen(
+    repository: CampsiteRepository,
+    onBack: () -> Unit
+) {
     var selectedCampsite by remember {
-        mutableStateOf<AdminCampsite?>(null)
+        mutableStateOf<Campsite?>(null)
     }
+
+    val campsites = repository.campsites
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
+
         Button(onClick = onBack) {
             Text("Back to Dashboard")
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // Keep the rest of your existing screen code below
+        Text(
+            text = "Registered Campsites",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text("Review all registered campsites.")
+
+        Spacer(Modifier.height(16.dp))
+
         if (selectedCampsite == null) {
 
-            Text(
-                text = "Registered Campsites",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Text("All campsites (${campsites.size})")
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Text("Review all registered campsites.")
+            when {
+                repository.isLoading -> {
+                    CircularProgressIndicator()
+                    Text("Loading campsites...")
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                repository.errorMessage != null -> {
+                    Text(
+                        text = repository.errorMessage!!,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
 
-            Text("All campsites (${sampleCampsites.size})")
+                campsites.isEmpty() -> {
+                    Text("No campsites available.")
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                else -> {
+                    campsites.forEach { campsite ->
 
-            if (sampleCampsites.isEmpty()) {
-                Text("No campsites available.")
-            } else {
-                sampleCampsites.forEach { campsite ->
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp)
                         ) {
-                            Text(
-                                campsite.name,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Text(campsite.location)
-
-                            Text("Owner: ${campsite.owner}")
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Button(
-                                onClick = {
-                                    selectedCampsite = campsite
-                                }
+                            Column(
+                                modifier = Modifier.padding(16.dp)
                             ) {
-                                Text("View campsite")
+                                Text(
+                                    text = campsite.Name,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(Modifier.height(4.dp))
+
+                                Text(campsite.Location)
+
+                                Spacer(Modifier.height(8.dp))
+
+                                Button(
+                                    onClick = {
+                                        selectedCampsite = campsite
+                                    }
+                                ) {
+                                    Text("View campsite")
+                                }
                             }
                         }
                     }
@@ -111,28 +106,31 @@ fun AdminCampsitesScreen(onBack: () -> Unit) {
 
         } else {
 
+            val campsite = selectedCampsite!!
+
             Text(
                 text = "Campsite Details",
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text = selectedCampsite!!.name,
+                text = campsite.Name,
                 fontWeight = FontWeight.Bold
             )
 
-            Text("Location: ${selectedCampsite!!.location}")
+            Text("Campsite ID: ${campsite.id}")
+            Text("Location: ${campsite.Location}")
+            Text("Rating: ${campsite.Rating}")
+            Text("Maximum guests: ${campsite.OccupancyLimit}")
 
-            Text("Owner: ${selectedCampsite!!.owner}")
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(Modifier.height(12.dp))
 
             Text("Description:")
-            Text(selectedCampsite!!.description)
+            Text(campsite.Description)
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(Modifier.height(20.dp))
 
             OutlinedButton(
                 onClick = {

@@ -22,8 +22,15 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         // Main home screen
         composable("home") {
             HomeScreen(
-                onNavigateToUser = { navController.navigate("search") },
-                onNavigateToOwner = { navController.navigate("owner_home") }
+                onNavigateToUser = {
+                    navController.navigate("search")
+                },
+                onNavigateToOwner = {
+                    navController.navigate("owner_home")
+                },
+                onNavigateToAdmin = {
+                    navController.navigate("admin")
+                }
             )
         }
 
@@ -57,9 +64,9 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
         composable("admin") {
             AdminDashboardScreen(navController)
         }
-
         composable("admin_campsites") {
             AdminCampsitesScreen(
+                repository = campsiteRepository,
                 onBack = { navController.navigate("admin") }
             )
         }
@@ -131,5 +138,6 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
                 onProfileClick = { navController.navigate("profile") }
             )
         }
+
     }
 }

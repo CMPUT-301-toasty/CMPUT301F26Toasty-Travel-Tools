@@ -1,10 +1,31 @@
+
 package com.example.toastytraveltools
 
 import androidx.compose.runtime.mutableStateListOf
 import com.google.firebase.Firebase
+import com.google.firebase.Timestamp
 import com.google.firebase.firestore.firestore
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+private fun Any?.asReservationDate(): String {
+    return when (this) {
+        is String -> this
+        is Timestamp -> SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(toDate())
+        is Date -> SimpleDateFormat(
+            "yyyy-MM-dd",
+            Locale.getDefault()
+        ).format(this)
+        else -> ""
+    }
+}
 
 class ReservationRepository {
+
     private val db = Firebase.firestore
     private val reservationsRef = db.collection("reservations")
 
@@ -15,6 +36,7 @@ class ReservationRepository {
 
     init {
         reservationsRef.addSnapshotListener { snapshot, error ->
+
             if (error != null) {
                 return@addSnapshotListener
             }
@@ -22,19 +44,33 @@ class ReservationRepository {
             _reservations.clear()
 
             snapshot?.documents?.forEach { document ->
-                val reservation = document.toObject(Reservation::class.java)
-                if (reservation != null) {
-                    // the doc id is the reservation id
-                    _reservations.add(reservation.copy(id = document.id))
+                try {
+                    val reservation = Reservation(
+                        id = document.id,
+                        campsiteName = document.getString("campsiteName") ?: "",
+                        location = document.getString("location") ?: "",
+                        entrantName = document.getString("entrantName") ?: "",
+                        startDate = document.get("startDate").asReservationDate(),
+                        endDate = document.get("endDate").asReservationDate(),
+                        guests = (document.get("guests") as? Number)?.toInt() ?: 0
+                    )
+
+                    _reservations.add(reservation)
+
+                } catch (e: Exception) {
+                    // Skip malformed reservation records.
                 }
             }
         }
     }
 
-    // onSaved gets the new document id so the caller can navigate to the confirmation screen
-    fun addReservation(reservation: Reservation, onSaved: (String) -> Unit) {
-        reservationsRef.add(reservation).addOnSuccessListener { docRef ->
-            onSaved(docRef.id)
-        }
+    fun addReservation(
+        reservation: Reservation,
+        onSaved: (String) -> Unit
+    ) {
+        reservationsRef.add(reservation)
+            .addOnSuccessListener { document ->
+                onSaved(document.id)
+            }
     }
 }

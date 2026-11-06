@@ -7,25 +7,70 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.google.firebase.firestore.FirebaseFirestore
 
 data class AdminProfile(
+    val id: String,
     val name: String,
     val email: String,
+    val phone: String,
     val role: String
-)
-
-private val sampleProfiles = listOf(
-    AdminProfile("Jordan Lee", "jordan.lee@email.com", "Entrant"),
-    AdminProfile("Maya Patel", "maya.patel@email.com", "Owner"),
-    AdminProfile("Lily Brooks", "lily.brooks@email.com", "Entrant"),
-    AdminProfile("Evan Cole", "evan.cole@email.com", "Owner")
 )
 
 @Composable
 fun AdminProfilesScreen(onBack: () -> Unit) {
+
+    var profiles by remember {
+        mutableStateOf<List<AdminProfile>>(emptyList())
+    }
+
     var selectedProfile by remember {
         mutableStateOf<AdminProfile?>(null)
+    }
+
+    var isLoading by remember {
+        mutableStateOf(true)
+    }
+
+    var errorMessage by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    // Listen for real Firebase profile changes
+    DisposableEffect(Unit) {
+
+        val listener = FirebaseFirestore.getInstance()
+            .collection("entrants")
+            .addSnapshotListener { snapshot, error ->
+
+                if (error != null) {
+                    errorMessage = error.localizedMessage
+                        ?: "Failed to load profiles."
+                    isLoading = false
+                    return@addSnapshotListener
+                }
+
+                profiles = snapshot?.documents?.map { document ->
+
+                    AdminProfile(
+                        id = document.id,
+                        name = document.getString("name") ?: "",
+                        email = document.getString("email") ?: "",
+                        phone = document.getString("phone") ?: "",
+                        role = document.getString("role") ?: "Entrant"
+                    )
+
+                } ?: emptyList()
+
+                errorMessage = null
+                isLoading = false
+            }
+
+        onDispose {
+            listener.remove()
+        }
     }
 
     Column(
@@ -33,62 +78,108 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
             .fillMaxSize()
             .padding(16.dp)
     ) {
+
         Button(onClick = onBack) {
             Text("Back to Dashboard")
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Keep the rest of your existing screen code below
         if (selectedProfile == null) {
+
             Text(
-                "User Profiles",
+                text = "User Profiles",
                 style = MaterialTheme.typography.headlineMedium
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            if (sampleProfiles.isEmpty()) {
-                Text("No profiles")
-            } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(sampleProfiles) { profile ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp)
+            Text("All profiles (${profiles.size})")
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            when {
+
+                isLoading -> {
+                    CircularProgressIndicator()
+                    Text("Loading profiles...")
+                }
+
+                errorMessage != null -> {
+                    Text(
+                        text = errorMessage!!,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                profiles.isEmpty() -> {
+                    Text("No profiles available.")
+                }
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+
+                        items(
+                            items = profiles,
+                            key = { it.id }
+                        ) { profile ->
+
+                            Card(
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(profile.name)
-                                Text("Role: ${profile.role}")
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Button(
-                                    onClick = {
-                                        selectedProfile = profile
-                                    }
+                                Column(
+                                    modifier = Modifier.padding(16.dp)
                                 ) {
-                                    Text("View Profile")
+
+                                    Text(
+                                        text = profile.name.ifBlank {
+                                            "Unnamed profile"
+                                        },
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    Text(profile.email)
+                                    Text("Role: ${profile.role}")
+
+                                    Spacer(
+                                        modifier = Modifier.height(8.dp)
+                                    )
+
+                                    Button(
+                                        onClick = {
+                                            selectedProfile = profile
+                                        }
+                                    ) {
+                                        Text("View Profile")
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+
         } else {
+
+            val profile = selectedProfile!!
+
             Text(
-                "Profile Details",
+                text = "Profile Details",
                 style = MaterialTheme.typography.headlineMedium
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Name: ${selectedProfile!!.name}")
-            Text("Email: ${selectedProfile!!.email}")
-            Text("Role: ${selectedProfile!!.role}")
+            Text("Name: ${profile.name}")
+            Text("Email: ${profile.email}")
+            Text("Phone: ${profile.phone}")
+            Text("Role: ${profile.role}")
+            Text("Profile ID: ${profile.id}")
 
             Spacer(modifier = Modifier.height(16.dp))
 

@@ -10,7 +10,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun HomeScreen(
     onNavigateToUser: () -> Unit,
-    onNavigateToOwner: () -> Unit
+    onNavigateToOwner: () -> Unit,
+    onNavigateToAdmin: () -> Unit
 ) {
     Scaffold { innerPadding ->
         Column(
@@ -46,6 +47,17 @@ fun HomeScreen(
             ) {
                 Text("Owner Mode")
             }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onNavigateToAdmin,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("Admin Mode")
+            }
+
         }
     }
 }
