@@ -17,7 +17,7 @@ object LotteryNotifier {
     private const val CHANNEL_ID = "lotteries"
 
     @SuppressLint("MissingPermission")
-    fun send(context: Context, l: Lottery, win: Boolean) {
+    fun send(context: Context, l: Lottery, win: Boolean, campsiteName: String = "") {
         //If user has won the lottery, set win argument to true
         // android 13+ needs the runtime permission, otherwise do nothing
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -33,11 +33,13 @@ object LotteryNotifier {
                 .createNotificationChannel(channel)
         }
 
+        val place = campsiteName.ifBlank { l.lotteryName.ifBlank { "the campsite" } }
+
         if(win) {
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Congratulations!")
-                .setContentText("You have just won the lottery: ${l.lotteryName}, book your reservation(s) on the app.")
+                .setContentText("You have just won the lottery for $place, book your reservation(s) on the app.")
                 .setAutoCancel(true)
                 .build()
             NotificationManagerCompat.from(context).notify(l.id.hashCode(), notification)
@@ -45,7 +47,7 @@ object LotteryNotifier {
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle("Lottery closed.")
-                .setContentText("Unfortunately, you did not win the lottery: ${l.lotteryName}.")
+                .setContentText("Unfortunately, you did not win the lottery for $place.")
                 .setAutoCancel(true)
                 .build()
             NotificationManagerCompat.from(context).notify(l.id.hashCode(), notification)

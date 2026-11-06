@@ -37,7 +37,11 @@ fun ToastyTravelToolsApp() {
     // notify this user if they won a lottery
     DisposableEffect(deviceId) {
         val listener = listenForLotteryWins(context, deviceId)
-        onDispose { listener.remove() }
+        val lossListener = listenForLotteryLosses(context.applicationContext, deviceId)
+        onDispose {
+            listener.remove()
+            lossListener.remove()
+        }
     }
 
     val navController = rememberNavController()
