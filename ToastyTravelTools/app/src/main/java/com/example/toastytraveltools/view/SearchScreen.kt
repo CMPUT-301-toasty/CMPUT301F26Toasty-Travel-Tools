@@ -56,6 +56,7 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
         ?: (get("tags") as? List<*>)?.mapNotNull { it as? String }
         ?: emptyList()
     val qrCodeUrl = getString("QrCodeUrl") ?: getString("qrCodeUrl") ?: ""
+    val ownerId = getString("ownerId") ?: ""
 
     return Campsite(
         id = id,
@@ -66,7 +67,8 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
         ImagesUrl = imagesUrl,
         Rating = rating,
         Tags = tags,
-        QrCodeUrl = qrCodeUrl
+        QrCodeUrl = qrCodeUrl,
+        ownerId = ownerId
     )
 }
 
@@ -143,7 +145,7 @@ fun filter_search(
                                     fmt.format(bookStart) <= date && date <= fmt.format(bookEnd)
                         }
                         .flatMap { doc ->
-                            when (val raw = doc.get("campsite_id")) {
+                            when (val raw = doc.get("campsiteIds") ?: doc.get("campsite_id")) {
                                 is List<*> -> raw.filterIsInstance<String>()
                                 is String -> listOf(raw)
                                 else -> emptyList()
