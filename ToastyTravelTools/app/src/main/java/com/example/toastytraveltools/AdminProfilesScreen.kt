@@ -10,15 +10,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
+import com.example.toastytraveltools.model.AdminProfile
+/**
+ * AdminProfilesScreen.kt
+ *
+ * Purpose:
+ * Provides administrators with an interface for browsing registered profiles.
+ *
+ * Design:
+ * Uses Jetpack Compose to display and manage profile information.
+ *
+ * Outstanding issues:
+ * Profile deletion must also handle associated reservations and
+ * waitlist entries. Campsite ownership requires separate handling.
+ */
 
-data class AdminProfile(
-    val id: String,
-    val name: String,
-    val email: String,
-    val phone: String,
-    val role: String
-)
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminProfilesScreen(onBack: () -> Unit) {
 
@@ -73,122 +80,130 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-
-        Button(onClick = onBack) {
-            Text("Back to Dashboard")
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (selectedProfile == null) {
-
-            Text(
-                text = "User Profiles",
-                style = MaterialTheme.typography.headlineMedium
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Uploaded Images") },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("Back")
+                    }
+                }
             )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
 
-            Spacer(modifier = Modifier.height(8.dp))
+            if (selectedProfile == null) {
 
-            Text("All profiles (${profiles.size})")
+                Text(
+                    text = "User Profiles",
+                    style = MaterialTheme.typography.headlineMedium
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            when {
+                Text("All profiles (${profiles.size})")
 
-                isLoading -> {
-                    CircularProgressIndicator()
-                    Text("Loading profiles...")
-                }
+                Spacer(modifier = Modifier.height(12.dp))
 
-                errorMessage != null -> {
-                    Text(
-                        text = errorMessage!!,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
+                when {
 
-                profiles.isEmpty() -> {
-                    Text("No profiles available.")
-                }
+                    isLoading -> {
+                        CircularProgressIndicator()
+                        Text("Loading profiles...")
+                    }
 
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
+                    errorMessage != null -> {
+                        Text(
+                            text = errorMessage!!,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
 
-                        items(
-                            items = profiles,
-                            key = { it.id }
-                        ) { profile ->
+                    profiles.isEmpty() -> {
+                        Text("No profiles available.")
+                    }
 
-                            Card(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp)
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+
+                            items(
+                                items = profiles,
+                                key = { it.id }
+                            ) { profile ->
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-
-                                    Text(
-                                        text = profile.name.ifBlank {
-                                            "Unnamed profile"
-                                        },
-                                        fontWeight = FontWeight.Bold
-                                    )
-
-                                    Text(profile.email)
-                                    Text("Role: ${profile.role}")
-
-                                    Spacer(
-                                        modifier = Modifier.height(8.dp)
-                                    )
-
-                                    Button(
-                                        onClick = {
-                                            selectedProfile = profile
-                                        }
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
                                     ) {
-                                        Text("View Profile")
+
+                                        Text(
+                                            text = profile.name.ifBlank {
+                                                "Unnamed profile"
+                                            },
+                                            fontWeight = FontWeight.Bold
+                                        )
+
+                                        Text(profile.email)
+                                        Text("Role: ${profile.role}")
+
+                                        Spacer(
+                                            modifier = Modifier.height(8.dp)
+                                        )
+
+                                        Button(
+                                            onClick = {
+                                                selectedProfile = profile
+                                            }
+                                        ) {
+                                            Text("View Profile")
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-        } else {
+            } else {
 
-            val profile = selectedProfile!!
+                val profile = selectedProfile!!
 
-            Text(
-                text = "Profile Details",
-                style = MaterialTheme.typography.headlineMedium
-            )
+                Text(
+                    text = "Profile Details",
+                    style = MaterialTheme.typography.headlineMedium
+                )
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Name: ${profile.name}")
-            Text("Email: ${profile.email}")
-            Text("Phone: ${profile.phone}")
-            Text("Role: ${profile.role}")
-            Text("Profile ID: ${profile.id}")
+                Text("Name: ${profile.name}")
+                Text("Email: ${profile.email}")
+                Text("Phone: ${profile.phone}")
+                Text("Role: ${profile.role}")
+                Text("Profile ID: ${profile.id}")
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-            OutlinedButton(
-                onClick = {
-                    selectedProfile = null
+                OutlinedButton(
+                    onClick = {
+                        selectedProfile = null
+                    }
+                ) {
+                    Text("Back to profiles")
                 }
-            ) {
-                Text("Back to profiles")
             }
         }
     }

@@ -1,14 +1,16 @@
-/*
- * UserProfile.kt
+/**
+ * Represents a user's profile and application preferences.
  *
- * Purpose: Model class for the user, could be an entrant, campsite owner
- * or admin), as well as their contact info/settings
+ * Used to store information for entrants, campsite owners,
+ * and administrators in Firestore.
  *
- * Issues:
- * - Could enforce role to be specific strings instead of anything
- * - Validate/error check email and phone number format
+ * @property name User's display name.
+ * @property email User's email address.
+ * @property phone User's phone number.
+ * @property deviceId Device identifier associated with the user.
+ * @property role User's application role (entrant, owner, or admin).
+ * @property notificationsEnabled Whether the user has enabled notifications.
  */
-
 package com.example.toastytraveltools.model
 
 /**

@@ -17,19 +17,21 @@ package com.example.toastytraveltools.model
 import com.google.firebase.Timestamp
 
 /**
- * A reservation an entrant holds for a campsite
+ * Represents a reservation made by an entrant for a campsite.
  *
- * @property id Firestore identification for reservation
- * @property campsiteName name of the campsite being reserved
- * @property location where the reserved campsite is
- * @property entrantName name of the entrant who made the reservation
- * @property startDate first day of the reservation; default Timestamp(0, 0)
- * @property endDate last day of the reservation; defailt Timestamp(0, 0)
- * @property guests number of guests included in the reservation
- * @property reviewScore the entrant's review score of their experience, can be null
+ * Reservation information is stored in Firestore and is used
+ * by reservation and lottery features.
  *
+ * @property id Unique reservation document ID.
+ * @property campsiteName Name of the reserved campsite.
+ * @property location Location of the campsite.
+ * @property entrantName Name of the entrant who made the reservation.
+ * @property entrantId ID of the entrant who made the reservation.
+ * @property startDate Beginning date of the reservation.
+ * @property endDate Ending date of the reservation.
+ * @property guests Number of guests included in the reservation.
+ * @property reviewScore Optional score submitted for the reservation.
  */
-
 data class Reservation (
     val id: String = "",
     val campsiteName: String = "",

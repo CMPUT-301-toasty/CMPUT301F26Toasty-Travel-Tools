@@ -1,104 +1,176 @@
-
+/**
+ * AdminImagesScreen.kt
+ *
+ * Purpose:
+ * Allows administrators to browse and remove uploaded campsite images.
+ *
+ * Design:
+ * Uses Jetpack Compose for the interface and Firebase Firestore
+ * and Storage for image management.
+ *
+ * Outstanding issues:
+ * Profile image management is not currently implemented.
+ * Firebase Storage deletion requires Storage access to be enabled
+ * in the Firebase project.
+ */
 package com.example.toastytraveltools
-
-import androidx.compose.foundation.background
+import com.example.toastytraveltools.view.toCampsiteSafely
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.toastytraveltools.model.Campsite
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 
-data class AdminImage(
-    val id: Int,
-    val title: String,
-    val belongsTo: String,
-    val category: String
-)
-
+/**
+ * Displays campsite images that have been uploaded to the application.
+ *
+ * Administrators can select an image for removal and confirm the action.
+ * The associated Firestore image reference is cleared after deletion.
+ *
+ * @param onBack Callback used to return to the Admin Dashboard.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminImagesScreen(onBack: () -> Unit) {
-    val images = remember {
-        mutableStateListOf(
-            // place holder images / campsites
-            AdminImage(1, "Creekside tent", "Pine Creek Camp", "Campsite"),
-            AdminImage(2, "Forest trail", "Pine Creek Camp", "Campsite"),
-            AdminImage(3, "Meadow pitch", "Fern Valley Camp", "Campsite"),
-            AdminImage(4, "Valley view", "Fern Valley Camp", "Campsite"),
-            AdminImage(5, "Maya Patel profile", "Maya Patel", "Profile"),
-            AdminImage(6, "Jordan Lee profile", "Jordan Lee", "Profile")
-        )
+    val db = remember { FirebaseFirestore.getInstance() }
+    val storage = remember { FirebaseStorage.getInstance() }
+
+    val campsites = remember { mutableStateListOf<Campsite>() }
+    var imageToRemove by remember { mutableStateOf<Campsite?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isRemoving by remember { mutableStateOf(false) }
+
+    /**
+     * Loads campsite records that have an image URL.
+     */
+    fun loadImages() {
+        isLoading = true
+        db.collection("campsites")
+            .get()
+            .addOnSuccessListener { snapshot ->
+                campsites.clear()
+                snapshot.documents.forEach { document ->
+                    val campsite = document.toCampsiteSafely()
+                    if (campsite != null) {
+                        campsite.id = document.id
+                        if (campsite.imagesUrl.isNotBlank()) {
+                            campsites.add(campsite)
+                        }
+                    }
+                }
+                isLoading = false
+            }
+            .addOnFailureListener {
+                errorMessage = "Could not load images: ${it.message}"
+                isLoading = false
+            }
     }
 
-    var imageToRemove by remember {
-        mutableStateOf<AdminImage?>(null)
+    LaunchedEffect(Unit) {
+        loadImages()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Button(onClick = onBack) {
-            Text("Back to Dashboard")
+    /**
+     * Deletes the Storage image and clears its Firestore URL.
+     *
+     * @param campsite Campsite whose image should be removed.
+     */
+    fun removeImage(campsite: Campsite) {
+        isRemoving = true
+        errorMessage = null
+
+        try {
+            storage.getReferenceFromUrl(campsite.imagesUrl)
+                .delete()
+                .addOnSuccessListener {
+                    db.collection("campsites")
+                        .document(campsite.id)
+                        .update("imagesUrl", "")
+                        .addOnSuccessListener {
+                            campsites.removeAll { it.id == campsite.id }
+                            imageToRemove = null
+                            isRemoving = false
+                        }
+                        .addOnFailureListener {
+                            errorMessage =
+                                "Image deleted, but its Firestore reference could not be cleared: ${it.message}"
+                            isRemoving = false
+                        }
+                }
+                .addOnFailureListener {
+                    errorMessage = "Could not delete image: ${it.message}"
+                    isRemoving = false
+                }
+        } catch (e: Exception) {
+            errorMessage = "Invalid image URL: ${e.message}"
+            isRemoving = false
         }
+    }
 
-        Spacer(modifier = Modifier.height(12.dp))
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Admin Images") },
+                navigationIcon = {
+                    TextButton(onClick = onBack) {
+                        Text("Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+        ) {
+            Text(
+                "Uploaded Campsite Images",
+                style = MaterialTheme.typography.headlineSmall
+            )
 
-        // Keep the rest of your existing screen code below
-        Text(
-            "Uploaded Images",
-            style = MaterialTheme.typography.headlineMedium
-        )
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
+            errorMessage?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
 
-        Text("Browse campsite and profile images")
+            when {
+                isLoading -> CircularProgressIndicator()
 
-        Spacer(modifier = Modifier.height(16.dp))
+                campsites.isEmpty() -> Text("No uploaded campsite images found.")
 
-        if (images.isEmpty()) {
-            Text("No uploaded images")
-        } else {
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(images, key = { it.id }) { image ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(130.dp)
-                                    .background(Color.LightGray),
-                                contentAlignment = androidx.compose.ui.Alignment.Center
-                            ) {
-                                Text("Image Preview")
-                            }
+                else -> LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(campsites, key = { it.id }) { campsite ->
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    campsite.name,
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text("Campsite: ${campsite.location}")
+                                Text(
+                                    "Image URL: ${campsite.imagesUrl}",
+                                    maxLines = 2
+                                )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
-                            Text(
-                                image.title,
-                                style = MaterialTheme.typography.titleMedium
-                            )
-
-                            Text("${image.category}: ${image.belongsTo}")
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Button(
-                                onClick = {
-                                    imageToRemove = image
+                                Button(
+                                    onClick = { imageToRemove = campsite },
+                                    enabled = !isRemoving
+                                ) {
+                                    Text("Remove Image")
                                 }
-                            ) {
-                                Text("Remove Image")
                             }
                         }
                     }
@@ -106,36 +178,35 @@ fun AdminImagesScreen(onBack: () -> Unit) {
             }
         }
     }
-
-    if (imageToRemove != null) {
+    /**
+     * Removes a campsite image from Firebase Storage and clears its
+     * image URL from the corresponding Firestore document.
+     *
+     * The campsite document itself is preserved.
+     *
+     * @param campsite Campsite whose image should be removed.
+     */
+    imageToRemove?.let { campsite ->
         AlertDialog(
             onDismissRequest = {
-                imageToRemove = null
+                if (!isRemoving) imageToRemove = null
             },
-            title = {
-                Text("Remove image?")
-            },
+            title = { Text("Remove image?") },
             text = {
-                Text(
-                    "Are you sure you want to remove " +
-                            "${imageToRemove!!.title}?"
-                )
+                Text("Remove the image for ${campsite.name}? The campsite itself will remain.")
             },
             confirmButton = {
                 Button(
-                    onClick = {
-                        images.remove(imageToRemove)
-                        imageToRemove = null
-                    }
+                    onClick = { removeImage(campsite) },
+                    enabled = !isRemoving
                 ) {
-                    Text("Remove")
+                    Text(if (isRemoving) "Removing..." else "Confirm Remove")
                 }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = {
-                        imageToRemove = null
-                    }
+                TextButton(
+                    onClick = { imageToRemove = null },
+                    enabled = !isRemoving
                 ) {
                     Text("Cancel")
                 }

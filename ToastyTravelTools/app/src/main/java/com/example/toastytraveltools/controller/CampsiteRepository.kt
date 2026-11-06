@@ -18,17 +18,20 @@ import com.example.toastytraveltools.view.toCampsiteSafely
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.DocumentReference
-
+import com.google.android.gms.tasks.Tasks
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.SetOptions
 /**
- * Manages campsite data which is also stored in the Firebase collection "campsites"
+ * Repository responsible for managing campsite data in Firebase Firestore.
  *
- * Listens for changes to the collection, keeps the variables campsites, isLoading,
- * and errorMessage up to date
+ * Maintains a live list of campsites and provides operations to add,
+ * update, and delete campsite records. It also handles related reservation
+ * and lottery references when a campsite is removed.
  *
- * @property campsites, list of all campsites currently loaded
- * @property isLoading, is true until the first snapshot
- * @property errorMessage brief description of the load error, can also be null
- * if the load was successful
+ * @property campsites Current list of loaded campsites.
+ * @property isLoading Whether the initial campsite data is loading.
+ * @property errorMessage Error message from the latest loading operation,
+ * or null if no error occurred.
  */
 
 class CampsiteRepository {
@@ -57,7 +60,13 @@ class CampsiteRepository {
      * @param onFailure called along with the exception if the save doesn't work
      */
 
-    // Add campsite
+    /**
+     * Adds a new campsite to Firestore using an automatically generated document ID.
+     *
+     * @param campsite Campsite information to save.
+     * @param onSuccess Callback invoked when the campsite is saved.
+     * @param onFailure Callback invoked if saving fails.
+     */
     fun addCampsite(
         campsite: Campsite,
         onSuccess: () -> Unit = {},
@@ -115,15 +124,14 @@ class CampsiteRepository {
      * @param onFailure called with exception if any of the steps fail
      */
     // Delete campsite and associated reservations and lottery references
+
     fun deleteCampsiteAndRelatedData(
         campsite: Campsite,
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
         if (campsite.id.isBlank() || campsite.name.isBlank()) {
-            onFailure(
-                IllegalArgumentException("Campsite ID or name is missing.")
-            )
+            onFailure(IllegalArgumentException("Campsite ID or name is missing."))
             return
         }
 
@@ -135,145 +143,149 @@ class CampsiteRepository {
             .get()
             .addOnSuccessListener { reservationSnapshot ->
 
-                lotteriesRef
-                    .whereArrayContains("campsite_id", campsite.id)
-                    .get()
-                    .addOnSuccessListener { snakeCaseSnapshot ->
+                val entrantIds = reservationSnapshot.documents
+                    .mapNotNull { doc ->
+                        (doc.getString("entrant_id")
+                            ?: doc.getString("entrantId"))
+                            ?.takeIf { it.isNotBlank() }
+                    }
+                    .distinct()
+
+                val entrantReads = entrantIds.map { entrantId ->
+                    db.collection("entrants").document(entrantId).get()
+                }
+
+                Tasks.whenAllSuccess<DocumentSnapshot>(entrantReads)
+                    .addOnSuccessListener { entrantSnapshots ->
 
                         lotteriesRef
-                            .whereArrayContains("campsiteIds", campsite.id)
+                            .whereArrayContains("campsite_id", campsite.id)
                             .get()
-                            .addOnSuccessListener { camelCaseSnapshot ->
+                            .addOnSuccessListener { snakeCaseSnapshot ->
 
-                                try {
-                                    val lotteryDocuments =
-                                        (
-                                                snakeCaseSnapshot.documents +
-                                                        camelCaseSnapshot.documents
-                                                ).distinctBy { it.id }
+                                lotteriesRef
+                                    .whereArrayContains("campsiteIds", campsite.id)
+                                    .get()
+                                    .addOnSuccessListener { camelCaseSnapshot ->
 
-                                    val lotteryUpdates = mutableListOf<
-                                            Pair<
-                                                    DocumentReference,
-                                                    Map<String, List<String>>?
-                                                    >
-                                            >()
+                                        try {
+                                            val lotteryDocuments =
+                                                (snakeCaseSnapshot.documents +
+                                                        camelCaseSnapshot.documents)
+                                                    .distinctBy { it.id }
 
-                                    lotteryDocuments.forEach { document ->
+                                            val lotteryUpdates = mutableListOf<
+                                                    Pair<DocumentReference, Map<String, List<String>>?>
+                                                    >()
 
-                                        val fields = listOf(
-                                            "campsite_id",
-                                            "campsiteIds"
-                                        ).filter { document.contains(it) }
+                                            lotteryDocuments.forEach { document ->
+                                                val fields = listOf(
+                                                    "campsite_id",
+                                                    "campsiteIds"
+                                                ).filter { document.contains(it) }
 
-                                        if (fields.isEmpty()) {
-                                            throw IllegalStateException(
-                                                "Lottery ${document.id} has no campsite reference field."
-                                            )
-                                        }
+                                                if (fields.isEmpty()) {
+                                                    throw IllegalStateException(
+                                                        "Lottery ${document.id} has no campsite reference field."
+                                                    )
+                                                }
 
-                                        val updatedFields =
-                                            fields.associateWith { field ->
-
-                                                val values =
-                                                    document.get(field) as? List<*>
+                                                val updatedFields = fields.associateWith { field ->
+                                                    val values = document.get(field) as? List<*>
                                                         ?: throw IllegalStateException(
                                                             "Invalid campsite list in lottery ${document.id}."
                                                         )
 
-                                                values.map { value ->
-                                                    value as? String
-                                                        ?: throw IllegalStateException(
-                                                            "Invalid campsite ID in lottery ${document.id}."
-                                                        )
-                                                }.filterNot {
-                                                    it == campsite.id
+                                                    values.map { value ->
+                                                        value as? String
+                                                            ?: throw IllegalStateException(
+                                                                "Invalid campsite ID in lottery ${document.id}."
+                                                            )
+                                                    }.filterNot { it == campsite.id }
+                                                }
+
+                                                val deleteLottery =
+                                                    updatedFields.values.all { it.isEmpty() }
+
+                                                lotteryUpdates.add(
+                                                    document.reference to
+                                                            if (deleteLottery) null else updatedFields
+                                                )
+                                            }
+
+                                            val eligibleEntrants = entrantSnapshots.filter {
+                                                it.getBoolean("notificationsEnabled") != false
+                                            }
+
+                                            val totalWrites =
+                                                reservationSnapshot.documents.size +
+                                                        lotteryUpdates.sumOf { (_, updates) ->
+                                                            if (updates == null) 1 else updates.size
+                                                        } +
+                                                        eligibleEntrants.size + 1
+
+                                            if (totalWrites > 500) {
+                                                throw IllegalStateException(
+                                                    "Too many related records to delete in one operation."
+                                                )
+                                            }
+
+                                            val batch = db.batch()
+
+                                            // Notify affected entrants in their existing profile documents.
+                                            eligibleEntrants.forEach { entrant ->
+                                                batch.set(
+                                                    entrant.reference,
+                                                    mapOf(
+                                                        "campsiteDeletionNotice" to
+                                                                "A reservation for ${campsite.name} was cancelled because the campsite was removed."
+                                                    ),
+                                                    SetOptions.merge()
+                                                )
+                                            }
+
+                                            // Delete associated reservations.
+                                            reservationSnapshot.documents.forEach { document ->
+                                                batch.delete(document.reference)
+                                            }
+
+                                            // Update or delete associated lotteries.
+                                            lotteryUpdates.forEach { (reference, updates) ->
+                                                if (updates == null) {
+                                                    batch.delete(reference)
+                                                } else {
+                                                    updates.forEach { (field, values) ->
+                                                        batch.update(reference, field, values)
+                                                    }
                                                 }
                                             }
 
-                                        val deleteLottery =
-                                            updatedFields.values.all { it.isEmpty() }
+                                            // Delete the campsite.
+                                            batch.delete(campsitesRef.document(campsite.id))
 
-                                        lotteryUpdates.add(
-                                            document.reference to
-                                                    if (deleteLottery) null
-                                                    else updatedFields
-                                        )
-                                    }
+                                            batch.commit()
+                                                .addOnSuccessListener { onSuccess() }
+                                                .addOnFailureListener { onFailure(it) }
 
-                                    val reservationCount =
-                                        reservationSnapshot.documents.size
-
-                                    val lotteryWriteCount =
-                                        lotteryUpdates.sumOf { (_, updates) ->
-                                            if (updates == null) 1
-                                            else updates.size
-                                        }
-
-                                    val totalWrites =
-                                        reservationCount +
-                                                lotteryWriteCount + 1
-
-                                    if (totalWrites > 500) {
-                                        throw IllegalStateException(
-                                            "Too many related records to delete in one operation."
-                                        )
-                                    }
-
-                                    val batch = db.batch()
-
-                                    // Delete associated reservations
-                                    reservationSnapshot.documents.forEach { document ->
-                                        batch.delete(document.reference)
-                                    }
-
-                                    // Update or delete associated lotteries
-                                    lotteryUpdates.forEach { (reference, updates) ->
-
-                                        if (updates == null) {
-                                            batch.delete(reference)
-                                        } else {
-                                            updates.forEach { (field, values) ->
-                                                batch.update(
-                                                    reference,
-                                                    field,
-                                                    values
-                                                )
-                                            }
+                                        } catch (e: Exception) {
+                                            onFailure(e)
                                         }
                                     }
-
-                                    // Delete the campsite
-                                    batch.delete(
-                                        campsitesRef.document(campsite.id)
-                                    )
-
-                                    batch.commit()
-                                        .addOnSuccessListener {
-                                            onSuccess()
-                                        }
-                                        .addOnFailureListener {
-                                            onFailure(it)
-                                        }
-
-                                } catch (e: Exception) {
-                                    onFailure(e)
-                                }
+                                    .addOnFailureListener { onFailure(it) }
                             }
-                            .addOnFailureListener {
-                                onFailure(it)
-                            }
+                            .addOnFailureListener { onFailure(it) }
                     }
-                    .addOnFailureListener {
-                        onFailure(it)
-                    }
+                    .addOnFailureListener { onFailure(it) }
             }
-            .addOnFailureListener {
-                onFailure(it)
-            }
+            .addOnFailureListener { onFailure(it) }
     }
 
-    // Listen for campsite changes
+
+    /**
+     * Starts a Firestore snapshot listener to keep the campsite list updated.
+     *
+     * Updates the loading state and error message as snapshots are received.
+     */
     init {
         campsitesRef.addSnapshotListener { snapshot, error ->
 
@@ -293,7 +305,8 @@ class CampsiteRepository {
                     _campsites.add(campsite)
                 } catch (e: Exception) {
                     errorMessage =
-                        "Some campsite records could not be loaded."
+                        "Campsite ${document.id} failed: " +
+                                (e.localizedMessage ?: e.javaClass.simpleName)
                 }
             }
 
