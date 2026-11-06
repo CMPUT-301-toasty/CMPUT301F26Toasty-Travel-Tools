@@ -1,5 +1,7 @@
 package com.example.toastytraveltools.view
 
+import android.hardware.usb.UsbDevice.getDeviceId
+import android.provider.Settings
 import android.util.Patterns
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.UserProfile
@@ -97,8 +100,11 @@ fun deleteProfile(
 fun BottomButtons_Profile(
     onSearchClick: () -> Unit,
     onReservationClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -124,7 +130,7 @@ fun BottomButtons_Profile(
             Text("Reservation", maxLines = 1)
         }
         Button(
-            onClick = onProfileClick,
+            onClick = { onProfileClick(deviceId) },
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 4.dp),
             shape = RectangleShape
@@ -140,7 +146,7 @@ fun ProfileScreen(
     onSearchClick: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     onReservationClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: (String) -> Unit = {}
 ) {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }

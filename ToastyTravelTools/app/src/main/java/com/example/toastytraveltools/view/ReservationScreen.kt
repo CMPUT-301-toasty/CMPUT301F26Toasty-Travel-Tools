@@ -65,8 +65,11 @@ fun loadReservations(
 fun BottomButtons_Reservation(
     onSearchClick: () -> Unit,
     onReservationClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: (String) -> Unit
 ) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -92,7 +95,7 @@ fun BottomButtons_Reservation(
             Text("Reservation", maxLines = 1)
         }
         OutlinedButton(
-            onClick = onProfileClick,
+            onClick = { onProfileClick(deviceId) },
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 4.dp),
             shape = RectangleShape
@@ -106,7 +109,7 @@ fun ReservationScreen (
     onNavigateBack: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: (String) -> Unit = {}
 ) {
     var active_clicked by remember { mutableStateOf(true) }
 

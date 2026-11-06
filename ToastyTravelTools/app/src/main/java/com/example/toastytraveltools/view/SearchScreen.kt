@@ -1,5 +1,6 @@
 package com.example.toastytraveltools.view
 
+import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
 import com.example.toastytraveltools.model.Campsite
 import com.google.firebase.firestore.DocumentSnapshot
 
@@ -234,8 +236,11 @@ fun CampsiteRow(
 fun BottomButtons_Search(
     onSearchClick: () -> Unit,
     onReservationClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: (String) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -261,7 +266,7 @@ fun BottomButtons_Search(
             Text("Reservation", maxLines = 1)
         }
         OutlinedButton(
-            onClick = onProfileClick,
+            onClick = { onProfileClick(deviceId) },
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 4.dp),
             shape = RectangleShape
@@ -277,7 +282,7 @@ fun SearchScreen(
     onCampsiteClick: (String) -> Unit,
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: (String) -> Unit = {}
 ) {
     var searchClicked by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
