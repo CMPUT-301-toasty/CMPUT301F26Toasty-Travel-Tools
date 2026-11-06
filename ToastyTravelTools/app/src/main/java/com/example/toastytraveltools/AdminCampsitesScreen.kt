@@ -112,13 +112,13 @@ fun AdminCampsitesScreen(
                             ) {
 
                                 Text(
-                                    text = campsite.Name,
+                                    text = campsite.name,
                                     fontWeight = FontWeight.Bold
                                 )
 
                                 Spacer(Modifier.height(4.dp))
 
-                                Text(campsite.Location)
+                                Text(campsite.location)
 
                                 Spacer(Modifier.height(8.dp))
 
@@ -163,19 +163,19 @@ fun AdminCampsitesScreen(
             Spacer(Modifier.height(16.dp))
 
             Text(
-                text = campsite.Name,
+                text = campsite.name,
                 fontWeight = FontWeight.Bold
             )
 
             Text("Campsite ID: ${campsite.id}")
-            Text("Location: ${campsite.Location}")
-            Text("Rating: ${campsite.Rating}")
-            Text("Maximum guests: ${campsite.OccupancyLimit}")
+            Text("Location: ${campsite.location}")
+            Text("Rating: ${campsite.rating}")
+            Text("Maximum guests: ${campsite.occupancyLimit}")
 
             Spacer(Modifier.height(12.dp))
 
             Text("Description:")
-            Text(campsite.Description)
+            Text(campsite.description)
 
             Spacer(Modifier.height(20.dp))
 
@@ -219,7 +219,7 @@ fun AdminCampsitesScreen(
                 Column {
 
                     Text(
-                        "Are you sure you want to remove ${campsite.Name}? " +
+                        "Are you sure you want to remove ${campsite.name}? " +
                                 "Its associated reservations and lottery references " +
                                 "will also be handled."
                     )
@@ -262,7 +262,7 @@ fun AdminCampsitesScreen(
 
                                 campsiteToDelete = null
                                 deleteMessage =
-                                    "${campsite.Name} was successfully removed."
+                                    "${campsite.name} was successfully removed."
                             },
 
                             onFailure = { error ->
