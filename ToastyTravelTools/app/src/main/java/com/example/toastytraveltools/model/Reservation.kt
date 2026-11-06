@@ -9,5 +9,6 @@ data class Reservation (
     val entrantName: String = "",
     val startDate: Timestamp = Timestamp(0, 0),
     val endDate: Timestamp = Timestamp(0, 0),
-    val guests: Int = 0
+    val guests: Int = 0,
+    var reviewScore: Int? = null
 )
