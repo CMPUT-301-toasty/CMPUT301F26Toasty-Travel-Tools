@@ -1,5 +1,6 @@
-package com.example.toastytraveltools
+package com.example.toastytraveltools.controller
 
+import com.example.toastytraveltools.model.Lottery
 import com.google.firebase.firestore.FirebaseFirestore
 
 class LotteryRepository {
