@@ -25,6 +25,7 @@ import java.util.Locale
 fun OwnerHomeScreen(
     onNavigateToAddCampsite: () -> Unit,
     onNavigateToCreateLottery: () -> Unit,
+    onNavigateToEditCampsite: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
     Scaffold(
@@ -65,6 +66,15 @@ fun OwnerHomeScreen(
                     .height(56.dp)
             ) {
                 Text("Create Lottery")
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = onNavigateToEditCampsite,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            ) {
+                Text("Edit Campsites")
             }
         }
     }
@@ -272,7 +282,7 @@ fun OwnerScreenCreateLottery(
                     label = { Text("Select Campsite *") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
+                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryEditable).fillMaxWidth()
                 )
                 ExposedDropdownMenu(
                     expanded = expanded,
@@ -390,6 +400,196 @@ fun OwnerScreenCreateLottery(
                 enabled = !isSaving
             ) {
                 Text(if (isSaving) "Creating..." else "Create Lottery")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OwnerScreenEditCampsite(
+    repository: CampsiteRepository,
+    onNavigateBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+    
+    // Get all campsites and filter by this owner
+    val allCampsites = repository.campsites
+    val myCampsites = remember(allCampsites) {
+        allCampsites.filter { it.ownerId == deviceId }
+    }
+
+    var selectedCampsiteId by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) }
+
+    var name by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var occupancy by remember { mutableStateOf("") }
+    var imageUrl by remember { mutableStateOf("") }
+    var tags by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+    var isSaving by remember { mutableStateOf(false) }
+
+    // when selection changes, populate the fields
+    LaunchedEffect(selectedCampsiteId) {
+        val site = myCampsites.find { it.id == selectedCampsiteId }
+        if (site != null) {
+            name = site.Name
+            location = site.Location
+            description = site.Description
+            occupancy = site.OccupancyLimit.toString()
+            imageUrl = site.ImagesUrl
+            tags = site.Tags.joinToString(", ")
+            errorMessage = ""
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Edit Campsite") },
+                navigationIcon = {
+                    TextButton(onClick = onNavigateBack) {
+                        Text("Back")
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (errorMessage.isNotEmpty()) {
+                Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded }
+            ) {
+                OutlinedTextField(
+                    value = if (selectedCampsiteId.isNotBlank()) { 
+                        myCampsites.find { it.id == selectedCampsiteId }?.Name ?: selectedCampsiteId 
+                    } else { "" },
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Select Campsite to Edit *") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryEditable).fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    myCampsites.forEach { site ->
+                        DropdownMenuItem(
+                            text = { Text(site.Name) },
+                            onClick = {
+                                selectedCampsiteId = site.id
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            if (selectedCampsiteId.isNotBlank()) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Campsite Name *") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = location,
+                    onValueChange = { location = it },
+                    label = { Text("Location (Map location) *") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Description (Amenities) *") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = occupancy,
+                    onValueChange = { occupancy = it },
+                    label = { Text("Maximum Occupancy *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = imageUrl,
+                    onValueChange = { imageUrl = it },
+                    label = { Text("Image URL (Optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = tags,
+                    onValueChange = { tags = it },
+                    label = { Text("Tags (comma separated, Optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Button(
+                    onClick = {
+                        if (name.isBlank() || location.isBlank() || description.isBlank() || occupancy.isBlank()) {
+                            errorMessage = "Please fill in all required fields."
+                            return@Button
+                        }
+                        val occupancyInt = occupancy.toIntOrNull()
+                        if (occupancyInt == null || occupancyInt <= 0) {
+                            errorMessage = "Please enter a valid occupancy number."
+                            return@Button
+                        }
+
+                        errorMessage = ""
+                        isSaving = true
+
+                        val tagList = if (tags.isNotBlank()) {
+                            tags.split(",").map { it.trim() }
+                        } else {
+                            emptyList()
+                        }
+
+                        val existingSite = myCampsites.find { it.id == selectedCampsiteId }!!
+                        val updatedCampsite = existingSite.copy(
+                            Name = name,
+                            Location = location,
+                            Description = description,
+                            OccupancyLimit = occupancyInt,
+                            ImagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
+                            Tags = tagList
+                        )
+
+                        repository.updateCampsite(
+                            campsite = updatedCampsite,
+                            onSuccess = { onNavigateBack() },
+                            onFailure = { e -> 
+                                isSaving = false
+                                errorMessage = "Failed to update: ${e.message}"
+                            }
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isSaving
+                ) {
+                    Text(if (isSaving) "Saving..." else "Save Changes")
+                }
             }
         }
     }
