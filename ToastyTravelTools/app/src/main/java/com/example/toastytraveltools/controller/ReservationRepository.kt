@@ -1,4 +1,14 @@
-
+/**
+ * ReservationRepository.kt
+ *
+ * Purpose: Controller repository between views and Firebase "reservations" collection
+ * A live list of reservations and creating new ones
+ *
+ * Outstanding issues:
+ * - No error message for loading errors
+ * - Add a failure callback for addReservation
+ * - Remove snapshot listener
+ */
 package com.example.toastytraveltools.controller
 
 import androidx.compose.runtime.mutableStateListOf
@@ -10,6 +20,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+
+/**
+ * Converts a Firestore date value into a Timestamp
+ *
+ * Supports Timestamp, Date and YYYY-MM-DD string values
+ * Anything that is not the above options becomes Timestamp(0, 0)
+ *
+ * @return the value as a Timestamp
+ */
 // Convert Firestore date values into Timestamp.
 // Supports existing Timestamp, Date and yyyy-MM-dd String values.
 private fun Any?.asReservationTimestamp(): Timestamp {
@@ -37,6 +56,14 @@ private fun Any?.asReservationTimestamp(): Timestamp {
     }
 }
 
+
+/**
+ * Manages reservation data stored in the Firestore "reservations" collection
+ *
+ * Listens for changes in the collection and keeps it up to date
+ *
+ * @property reservations list of all reservations loaded
+ */
 class ReservationRepository {
 
     private val db = Firebase.firestore
@@ -80,6 +107,15 @@ class ReservationRepository {
         }
     }
 
+    /**
+     * Adds a new reservation to the Firestore
+     *
+     * A new document ID is created and stored in the reservation's id field
+     *
+     * @param reservation the reservation to add
+     * @param onSaved called with new document ID after the save works, not called
+     * if the save doesn't work
+     */
     fun addReservation(
         reservation: Reservation,
         onSaved: (String) -> Unit
