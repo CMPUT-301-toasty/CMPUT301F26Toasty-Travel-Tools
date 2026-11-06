@@ -53,6 +53,9 @@ fun ToastyTravelToolsApp() {
                 onNavigateToCreateLottery = {
                     navController.navigate("owner_create_lottery")
                 },
+                onNavigateToEditCampsite = {
+                    navController.navigate("owner_edit_campsite")
+                },
                 onNavigateBack = {
                     navController.popBackStack()
                 }
@@ -68,20 +71,24 @@ fun ToastyTravelToolsApp() {
             )
         }
 
-        // Keep exactly one owner_create_lottery route
+        // The correct block for creating lotteries
         composable("owner_create_lottery") {
             OwnerScreenCreateLottery(
                 lotteryRepository = lotteryRepository,
                 campsiteRepository = campsiteRepository,
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("owner_edit_campsite") {
+            OwnerScreenEditCampsite(
+                repository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
         // Admin screens
-        composable("admin") {
-            AdminDashboardScreen(navController)
+        composable("admin") {AdminDashboardScreen(navController)
         }
 
         composable("admin_campsites") {
