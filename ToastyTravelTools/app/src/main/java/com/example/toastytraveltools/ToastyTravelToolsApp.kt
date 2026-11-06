@@ -14,8 +14,9 @@ fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
     // set the start screen to the search screen since we don't have other screens yet
     // this can always be changed
     NavHost(navController = navController, startDestination = "search") {
-        composable("search") { SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id") }, onSearchClick = { navController.navigate("search") }, onReservationClick = { navController.navigate("reservation") }, onProfileClick = { navController.navigate("profile") }) }
-
+        composable("search") {
+            SearchScreen(onCampsiteClick = { id -> navController.navigate("details/$id") }, onSearchClick = { navController.navigate("search") }, onReservationClick = { navController.navigate("reservation") }, onProfileClick = { navController.navigate("profile") })
+        }
 
         // details screen, pass in campsite id
         composable("details/{campsiteId}") { backStackEntry ->
