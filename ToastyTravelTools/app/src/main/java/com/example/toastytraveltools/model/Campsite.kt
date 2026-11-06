@@ -4,13 +4,13 @@ import com.google.firebase.firestore.DocumentId
 
 data class Campsite (
     @DocumentId var id : String = "",
-    val Name : String = "",
-    val Description : String = "",
-    val Location : String = "",
-    val OccupancyLimit : Int = 0,
-    val ImagesUrl: String = "",
-    var Rating: Double = 0.0,
-    val Tags: List<String> = emptyList(),
-    val QrCodeUrl: String = "",
+    val name : String = "",
+    val description : String = "",
+    val location : String = "",
+    val occupancyLimit : Int = 0,
+    val imagesUrl: String = "",
+    var rating: Double = 0.0,
+    val tags: List<String> = emptyList(),
+    val qrCodeUrl: String = "",
     val ownerId: String = ""
 )

@@ -46,7 +46,7 @@ fun updateScore(campsite: Campsite){
     var scoreCount: Int = 0
     FirebaseFirestore.getInstance()
         .collection("reservations")
-        .whereEqualTo("campsiteName", campsite.Name)
+        .whereEqualTo("campsiteName", campsite.name)
         .get()
         .addOnSuccessListener { snapshot ->
             val reservations = snapshot.documents.mapNotNull { doc ->
@@ -65,7 +65,7 @@ fun updateScore(campsite: Campsite){
                 .collection("campsites")
                 .document(campsite.id)
                 .update("Rating", scoreTotal.toDouble()/scoreCount.toDouble())
-            campsite.Rating = scoreTotal.toDouble()/scoreCount.toDouble()
+            campsite.rating = scoreTotal.toDouble()/scoreCount.toDouble()
         }
         .addOnFailureListener {  }
 }
@@ -126,14 +126,14 @@ fun CampsiteDetailsScreen(
             Spacer(Modifier.width(12.dp))
 
             Text(
-                text = snapshot_campsite.Name,
+                text = snapshot_campsite.name,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
         }
 
         Text(
-            text = snapshot_campsite.Location,
+            text = snapshot_campsite.location,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -152,7 +152,7 @@ fun CampsiteDetailsScreen(
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = "${snapshot_campsite.Rating}",
+                        text = "${snapshot_campsite.rating}",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -163,7 +163,7 @@ fun CampsiteDetailsScreen(
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = "${snapshot_campsite.OccupancyLimit}",
+                        text = "${snapshot_campsite.occupancyLimit}",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -177,7 +177,7 @@ fun CampsiteDetailsScreen(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = snapshot_campsite.Description,
+            text = snapshot_campsite.description,
             style = MaterialTheme.typography.bodyMedium
         )
 
@@ -185,7 +185,7 @@ fun CampsiteDetailsScreen(
         val now = Timestamp.now()
         var reviewing by remember { mutableStateOf<Boolean>(false)}
         for (r in reservations){
-            if (r.campsiteName == snapshot_campsite.Name && r.endDate < now){
+            if (r.campsiteName == snapshot_campsite.name && r.endDate < now){
                 if(reviewing == false) {
                     if (r.reviewScore == null) {
                         OutlinedButton(

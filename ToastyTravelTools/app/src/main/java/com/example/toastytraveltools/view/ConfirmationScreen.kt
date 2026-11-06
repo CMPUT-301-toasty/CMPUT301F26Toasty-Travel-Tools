@@ -13,9 +13,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.Reservation
+import com.google.firebase.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Locale
+
+private fun formatDate(timestamp: Timestamp): String =
+    SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(timestamp.toDate())
 
 @Composable
-fun ConfirmationScreen(reservation: Reservation) {
+fun ConfirmationScreen(reservation: Reservation, onHome: () -> Unit = {}) {
     val context = LocalContext.current
 
     val saveCsv = rememberLauncherForActivityResult(
@@ -33,16 +39,14 @@ fun ConfirmationScreen(reservation: Reservation) {
         Text("Confirmation #: ${reservation.id}")
         Text("Campsite: ${reservation.campsiteName}")
         Text("Location: ${reservation.location}")
-        Text("Dates: ${reservation.startDate} to ${reservation.endDate}")
+        Text("Dates: ${formatDate(reservation.startDate)} to ${formatDate(reservation.endDate)}")
         Text("Guests: ${reservation.guests}")
         Button(onClick = { saveCsv.launch("reservation_${reservation.id}.csv") }) {
             Text("Download CSV")
         }
-//        Button(onClick = { ReservationNotifier.send(context, reservation) }) {
-//            Text("Test notification")
-//        }
-        // notifications works, but it should probably be sent after a reservation is booked
-        // before navigating to confirmation screen
+        Button(onClick = onHome) {
+            Text("Home")
+        }
     }
 }
 

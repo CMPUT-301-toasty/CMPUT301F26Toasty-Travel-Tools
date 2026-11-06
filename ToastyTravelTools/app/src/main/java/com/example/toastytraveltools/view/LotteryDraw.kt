@@ -135,16 +135,16 @@ fun claimLotterySpot(
             "Your end date is after the booking dates close"
         }
 
-        check(campsite.OccupancyLimit <= 0 || guests <= campsite.OccupancyLimit) {
-            "This campsite allows a maximum of ${campsite.OccupancyLimit} guests"
+        check(campsite.occupancyLimit <= 0 || guests <= campsite.occupancyLimit) {
+            "This campsite allows a maximum of ${campsite.occupancyLimit} guests"
         }
 
         check(lottery.spotsRemaining > 0) { "All spots have been claimed by other winners" }
 
         val reservation = Reservation(
             id = "${lotteryId}_$entrantId",
-            campsiteName = campsite.Name,
-            location = campsite.Location,
+            campsiteName = campsite.name,
+            location = campsite.location,
             entrantName = entrant?.name ?: "",
             entrantId = entrantId,
             startDate = Timestamp(Date(startMillis)),
@@ -192,7 +192,7 @@ fun loadCampsiteName(
         .document(campsiteId)
         .get()
         .addOnSuccessListener { doc ->
-            onResult(doc.toObject(Campsite::class.java)?.Name ?: "")
+            onResult(doc.toObject(Campsite::class.java)?.name ?: "")
         }
 }
 

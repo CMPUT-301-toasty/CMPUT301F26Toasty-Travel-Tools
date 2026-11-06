@@ -176,7 +176,12 @@ fun ToastyTravelToolsApp() {
                 reservationRepository.reservations.find { it.id == id }
 
             if (reservation != null) {
-                ConfirmationScreen(reservation = reservation)
+                ConfirmationScreen(reservation = reservation,
+                    onHome = {
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = false }
+                        }
+                    })
             } else {
                 Text("Loading...")
             }
@@ -208,11 +213,14 @@ fun ToastyTravelToolsApp() {
         }
 
         composable("claimed_confirmation") {
-
             val reservation = claimedReservation
-
             if (reservation != null) {
-                ConfirmationScreen(reservation = reservation)
+                ConfirmationScreen(reservation = reservation,
+                    onHome = {
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = false }
+                        }
+                    })
             } else {
                 Text("Loading...")
             }
