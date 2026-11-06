@@ -120,7 +120,7 @@ class CampsiteRepository {
         onSuccess: () -> Unit,
         onFailure: (Exception) -> Unit
     ) {
-        if (campsite.id.isBlank() || campsite.Name.isBlank()) {
+        if (campsite.id.isBlank() || campsite.name.isBlank()) {
             onFailure(
                 IllegalArgumentException("Campsite ID or name is missing.")
             )
@@ -131,7 +131,7 @@ class CampsiteRepository {
         val lotteriesRef = db.collection("lotteries")
 
         reservationsRef
-            .whereEqualTo("campsiteName", campsite.Name)
+            .whereEqualTo("campsiteName", campsite.name)
             .get()
             .addOnSuccessListener { reservationSnapshot ->
 

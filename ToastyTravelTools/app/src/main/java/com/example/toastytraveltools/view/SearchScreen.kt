@@ -61,14 +61,14 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
 
     return Campsite(
         id = id,
-        Name = name,
-        Description = desc,
-        Location = loc,
-        OccupancyLimit = limit.toInt(),
-        ImagesUrl = imagesUrl,
-        Rating = rating,
-        Tags = tags,
-        QrCodeUrl = qrCodeUrl,
+        name = name,
+        description = desc,
+        location = loc,
+        occupancyLimit = limit.toInt(),
+        imagesUrl = imagesUrl,
+        rating = rating,
+        tags = tags,
+        qrCodeUrl = qrCodeUrl,
         ownerId = ownerId
     )
 }
@@ -85,10 +85,10 @@ fun searchCampsite(
         .addOnSuccessListener { snapshot ->
             val matches = snapshot.documents.map { it.toCampsiteSafely() }
                 .filter { 
-                    it.Name.contains(query, ignoreCase = true) ||
-                    it.Description.contains(query, ignoreCase = true) ||
-                    it.Location.contains(query, ignoreCase = true) ||
-                    it.Tags.any { tag -> tag.contains(query, ignoreCase = true) }
+                    it.name.contains(query, ignoreCase = true) ||
+                    it.description.contains(query, ignoreCase = true) ||
+                    it.location.contains(query, ignoreCase = true) ||
+                    it.tags.any { tag -> tag.contains(query, ignoreCase = true) }
                 }
             onResult(matches)
         }
@@ -221,30 +221,30 @@ fun CampsiteRow(
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Text(
-            text = campsite.Name,
+            text = campsite.name,
             fontSize = 18.sp,
         )
 
         Text(
-            text = campsite.Location,
+            text = campsite.location,
             fontSize = 14.sp,
         )
 
-        if (campsite.Tags.isNotEmpty()) {
+        if (campsite.tags.isNotEmpty()) {
             Text(
-                text = "Tags: ${campsite.Tags.joinToString(", ")}",
+                text = "Tags: ${campsite.tags.joinToString(", ")}",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.secondary
             )
         }
 
         Text(
-            text = "Guests Limit: ${campsite.OccupancyLimit}",
+            text = "Guests Limit: ${campsite.occupancyLimit}",
             fontSize = 14.sp,
         )
 
         Text(
-            text = "Rating: ${campsite.Rating}",
+            text = "Rating: ${campsite.rating}",
             fontSize = 14.sp,
         )
     }

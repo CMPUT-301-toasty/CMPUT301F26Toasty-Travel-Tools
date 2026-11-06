@@ -188,13 +188,13 @@ fun OwnerScreenAddCampsite(
                     val generatedQrUrl = "qr://campsite/${System.currentTimeMillis()}"
 
                     val newCampsite = Campsite(
-                        Name = name,
-                        Location = location,
-                        Description = description,
-                        OccupancyLimit = occupancyInt,
-                        ImagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
-                        Tags = tagList,
-                        QrCodeUrl = generatedQrUrl,
+                        name = name,
+                        location = location,
+                        description = description,
+                        occupancyLimit = occupancyInt,
+                        imagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
+                        tags = tagList,
+                        qrCodeUrl = generatedQrUrl,
                         ownerId = deviceId
                     )
 
@@ -276,7 +276,7 @@ fun OwnerScreenCreateLottery(
                 onExpandedChange = { expanded = !expanded }
             ) {
                 OutlinedTextField(
-                    value = if (campsiteId.isNotBlank()) { myCampsites.find { it.id == campsiteId }?.Name ?: campsiteId } else { "" },
+                    value = if (campsiteId.isNotBlank()) { myCampsites.find { it.id == campsiteId }?.name ?: campsiteId } else { "" },
                     onValueChange = {},
                     readOnly = true,
                     label = { Text("Select Campsite *") },
@@ -290,7 +290,7 @@ fun OwnerScreenCreateLottery(
                 ) {
                     myCampsites.forEach { site ->
                         DropdownMenuItem(
-                            text = { Text(site.Name) },
+                            text = { Text(site.name) },
                             onClick = {
                                 campsiteId = site.id
                                 expanded = false
@@ -436,12 +436,12 @@ fun OwnerScreenEditCampsite(
     LaunchedEffect(selectedCampsiteId) {
         val site = myCampsites.find { it.id == selectedCampsiteId }
         if (site != null) {
-            name = site.Name
-            location = site.Location
-            description = site.Description
-            occupancy = site.OccupancyLimit.toString()
-            imageUrl = site.ImagesUrl
-            tags = site.Tags.joinToString(", ")
+            name = site.name
+            location = site.location
+            description = site.description
+            occupancy = site.occupancyLimit.toString()
+            imageUrl = site.imagesUrl
+            tags = site.tags.joinToString(", ")
             errorMessage = ""
         }
     }
@@ -476,7 +476,7 @@ fun OwnerScreenEditCampsite(
             ) {
                 OutlinedTextField(
                     value = if (selectedCampsiteId.isNotBlank()) { 
-                        myCampsites.find { it.id == selectedCampsiteId }?.Name ?: selectedCampsiteId 
+                        myCampsites.find { it.id == selectedCampsiteId }?.name ?: selectedCampsiteId
                     } else { "" },
                     onValueChange = {},
                     readOnly = true,
@@ -491,7 +491,7 @@ fun OwnerScreenEditCampsite(
                 ) {
                     myCampsites.forEach { site ->
                         DropdownMenuItem(
-                            text = { Text(site.Name) },
+                            text = { Text(site.name) },
                             onClick = {
                                 selectedCampsiteId = site.id
                                 expanded = false
@@ -568,12 +568,12 @@ fun OwnerScreenEditCampsite(
 
                         val existingSite = myCampsites.find { it.id == selectedCampsiteId }!!
                         val updatedCampsite = existingSite.copy(
-                            Name = name,
-                            Location = location,
-                            Description = description,
-                            OccupancyLimit = occupancyInt,
-                            ImagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
-                            Tags = tagList
+                            name = name,
+                            location = location,
+                            description = description,
+                            occupancyLimit = occupancyInt,
+                            imagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
+                            tags = tagList
                         )
 
                         repository.updateCampsite(
