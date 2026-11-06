@@ -38,6 +38,11 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import com.google.firebase.firestore.DocumentSnapshot
 
 // helper to safely parse campsites that might have been saved with either capitalized or lowercase keys
@@ -271,6 +276,7 @@ fun BottomButtons_Search(
 
 @Composable
 fun SearchScreen(
+    onNavigateBack: () -> Unit = {},
     onCampsiteClick: (String) -> Unit,
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
@@ -287,6 +293,17 @@ fun SearchScreen(
     var filter_tags by remember { mutableStateOf("") }
 
     Scaffold(
+        topBar = {
+            @OptIn(ExperimentalMaterial3Api::class)
+            TopAppBar(
+                title = { Text("Search Campsites") },
+                navigationIcon = {
+                    TextButton(onClick = onNavigateBack) {
+                        Text("Back")
+                    }
+                }
+            )
+        },
         bottomBar = {
             BottomButtons_Search(
                 onSearchClick = onSearchClick,

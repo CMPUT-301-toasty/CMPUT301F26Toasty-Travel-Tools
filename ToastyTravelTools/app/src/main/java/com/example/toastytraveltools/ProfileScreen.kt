@@ -18,6 +18,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -129,10 +132,12 @@ fun BottomButtons_Profile(
         }
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     userId: String,
     onSearchClick: () -> Unit = {},
+    onNavigateBack: () -> Unit = {},
     onReservationClick: () -> Unit = {},
     onProfileClick: () -> Unit = {}
 ) {
@@ -161,6 +166,16 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Profile") },
+                navigationIcon = {
+                    TextButton(onClick = onNavigateBack) {
+                        Text("Back")
+                    }
+                }
+            )
+        },
         bottomBar = {
             BottomButtons_Profile(
                 onSearchClick = onSearchClick,
@@ -171,6 +186,7 @@ fun ProfileScreen(
     ){ innerpadding ->
         Column(
             modifier = Modifier
+                .padding(innerpadding)
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
                 .padding(top = 32.dp),
