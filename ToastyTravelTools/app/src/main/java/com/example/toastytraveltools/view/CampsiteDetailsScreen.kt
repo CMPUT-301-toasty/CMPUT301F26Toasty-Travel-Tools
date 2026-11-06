@@ -1,3 +1,14 @@
+/*
+CampsiteDetailsScreen.kt
+
+Purpose: Shows the details of the campsite that is clicked on. When the user clicks on one of the
+campsites from the search results, a new screen will popup that show the rating, max guests,
+description, location, and a button to join the lottery if available.
+
+Issues:
+ - no current outstanding issues
+ */
+
 package com.example.toastytraveltools.view
 
 import androidx.compose.runtime.Composable

@@ -1,3 +1,14 @@
+/*
+HomeScreen.kt
+
+Purpose: This is the start screen when we open the app. It allows the user to navigate to the user
+mode, owner mode, and admin mode.
+
+Issues:
+ - need to be changed so that specific options only show depending on the user's role
+ - the problem right now is that it allows all users to be an owner and admin when they should not be one
+ */
+
 package com.example.toastytraveltools.view
 
 import android.provider.Settings

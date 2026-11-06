@@ -1,3 +1,22 @@
+/*
+LotteryDraw.kt
+
+Purpose: DrawLottery Picks numberOfWinners from the waitlist randomly. Changes status
+to "drawn" so it isn't drawn again. Records data like winners, waitlist and
+spotsRemaining, and reports success or error drawDueLotteries finds all the lotteries
+that are ready to be drawn. Apply drawLottery to that lottery and report result
+claimLotterySpot allows the winner of the lottery to book dates. Validation
+check for valid user, winner and applicable booking dates. Creates reservation
+and changes spotsRemaining listenForLotteryWins and listenForLotteryLosses checks
+Firestore and sends notification per person, not counting those with no notifications on
+
+Issues:
+ - two winners can book the same dates, because the code never checks the bookings against
+ other winners
+ - winners of lottery cannot be notified if they have notifications off
+*/
+
+
 package com.example.toastytraveltools.view
 
 import android.content.Context

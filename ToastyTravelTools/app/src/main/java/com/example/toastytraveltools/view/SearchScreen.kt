@@ -1,3 +1,14 @@
+/*
+SearchScreen.kt
+
+Purpose: This is the screen that allows the user to search for campsites by campsite name or
+filter by location, date, number of guests, and tags.
+
+Issues:
+ - padding between the header and the search is not very eye appealing
+ - make it more clear that you can click on the result to see campsite details
+ */
+
 package com.example.toastytraveltools.view
 
 import android.provider.Settings
