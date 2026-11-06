@@ -15,8 +15,25 @@ fun AdminCampsitesScreen(
     repository: CampsiteRepository,
     onBack: () -> Unit
 ) {
+
     var selectedCampsite by remember {
         mutableStateOf<Campsite?>(null)
+    }
+
+    var campsiteToDelete by remember {
+        mutableStateOf<Campsite?>(null)
+    }
+
+    var isDeleting by remember {
+        mutableStateOf(false)
+    }
+
+    var deleteError by remember {
+        mutableStateOf<String?>(null)
+    }
+
+    var deleteMessage by remember {
+        mutableStateOf<String?>(null)
     }
 
     val campsites = repository.campsites
@@ -44,6 +61,14 @@ fun AdminCampsitesScreen(
 
         Text("Review all registered campsites.")
 
+        deleteMessage?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = it,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
         Spacer(Modifier.height(16.dp))
 
         if (selectedCampsite == null) {
@@ -53,6 +78,7 @@ fun AdminCampsitesScreen(
             Spacer(Modifier.height(12.dp))
 
             when {
+
                 repository.isLoading -> {
                     CircularProgressIndicator()
                     Text("Loading campsites...")
@@ -70,6 +96,7 @@ fun AdminCampsitesScreen(
                 }
 
                 else -> {
+
                     campsites.forEach { campsite ->
 
                         Card(
@@ -77,9 +104,11 @@ fun AdminCampsitesScreen(
                                 .fillMaxWidth()
                                 .padding(bottom = 12.dp)
                         ) {
+
                             Column(
                                 modifier = Modifier.padding(16.dp)
                             ) {
+
                                 Text(
                                     text = campsite.Name,
                                     fontWeight = FontWeight.Bold
@@ -91,12 +120,28 @@ fun AdminCampsitesScreen(
 
                                 Spacer(Modifier.height(8.dp))
 
-                                Button(
-                                    onClick = {
-                                        selectedCampsite = campsite
-                                    }
+                                Row(
+                                    horizontalArrangement =
+                                        Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Text("View campsite")
+
+                                    Button(
+                                        onClick = {
+                                            selectedCampsite = campsite
+                                        }
+                                    ) {
+                                        Text("View campsite")
+                                    }
+
+                                    OutlinedButton(
+                                        onClick = {
+                                            deleteError = null
+                                            deleteMessage = null
+                                            campsiteToDelete = campsite
+                                        }
+                                    ) {
+                                        Text("Remove")
+                                    }
                                 }
                             }
                         }
@@ -139,6 +184,112 @@ fun AdminCampsitesScreen(
             ) {
                 Text("Back to campsites")
             }
+
+            Spacer(Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    deleteError = null
+                    deleteMessage = null
+                    campsiteToDelete = campsite
+                }
+            ) {
+                Text("Remove Campsite")
+            }
         }
+    }
+
+    // Confirmation dialog
+    campsiteToDelete?.let { campsite ->
+
+        AlertDialog(
+            onDismissRequest = {
+                if (!isDeleting) {
+                    campsiteToDelete = null
+                }
+            },
+
+            title = {
+                Text("Remove campsite?")
+            },
+
+            text = {
+                Column {
+
+                    Text(
+                        "Are you sure you want to remove ${campsite.Name}? " +
+                                "Its associated reservations and lottery references " +
+                                "will also be handled."
+                    )
+
+                    deleteError?.let {
+                        Spacer(Modifier.height(8.dp))
+
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+
+                    if (isDeleting) {
+                        Spacer(Modifier.height(12.dp))
+                        CircularProgressIndicator()
+                        Text("Removing campsite...")
+                    }
+                }
+            },
+
+            confirmButton = {
+
+                Button(
+                    enabled = !isDeleting,
+                    onClick = {
+
+                        isDeleting = true
+                        deleteError = null
+
+                        repository.deleteCampsiteAndRelatedData(
+                            campsite = campsite,
+
+                            onSuccess = {
+                                isDeleting = false
+
+                                if (selectedCampsite?.id == campsite.id) {
+                                    selectedCampsite = null
+                                }
+
+                                campsiteToDelete = null
+                                deleteMessage =
+                                    "${campsite.Name} was successfully removed."
+                            },
+
+                            onFailure = { error ->
+                                isDeleting = false
+
+                                deleteError = error.localizedMessage
+                                    ?: "Failed to remove campsite."
+                            }
+                        )
+                    }
+                ) {
+                    Text(
+                        if (isDeleting) "Removing..."
+                        else "Confirm Remove"
+                    )
+                }
+            },
+
+            dismissButton = {
+
+                OutlinedButton(
+                    enabled = !isDeleting,
+                    onClick = {
+                        campsiteToDelete = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
