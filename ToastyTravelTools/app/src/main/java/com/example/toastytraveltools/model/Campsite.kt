@@ -9,7 +9,7 @@ data class Campsite (
     val Location : String = "",
     val OccupancyLimit : Int = 0,
     val ImagesUrl: String = "",
-    val Rating: Double = 0.0,
+    var Rating: Double = 0.0,
     val Tags: List<String> = emptyList(),
     val QrCodeUrl: String = ""
 )
