@@ -9,10 +9,11 @@ import androidx.navigation.compose.NavHost
 
 
 @Composable
-fun ToastyTravelToolsApp(reservationRepository: ReservationRepository) {
+fun ToastyTravelToolsApp() {
     val navController = rememberNavController()
     val campsiteRepository = remember { CampsiteRepository() }
     val lotteryRepository = remember { LotteryRepository() }
+    val reservationRepository = remember { ReservationRepository() }
 
     NavHost(navController = navController, startDestination = "home") {
         composable("home") {

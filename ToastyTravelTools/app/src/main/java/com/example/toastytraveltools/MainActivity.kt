@@ -29,10 +29,9 @@ class MainActivity : ComponentActivity() {
 
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
 
-        val reservationRepository = ReservationRepository() // I think we need a repository for campsites too
         setContent {
             ToastyTravelToolsTheme {
-                ToastyTravelToolsApp(reservationRepository)
+                ToastyTravelToolsApp()
             }
         }
     }
