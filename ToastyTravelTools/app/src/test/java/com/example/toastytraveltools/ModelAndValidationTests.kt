@@ -20,24 +20,24 @@ class ModelAndValidationTests {
     fun testCampsiteModel_defaultValues() {
         val campsite = Campsite()
         assertEquals("", campsite.id)
-        assertEquals("", campsite.Name)
-        assertEquals(0, campsite.OccupancyLimit)
-        assertEquals(0.0, campsite.Rating, 0.0)
-        assertTrue(campsite.Tags.isEmpty())
+        assertEquals("", campsite.name)
+        assertEquals(0, campsite.occupancyLimit)
+        assertEquals(0.0, campsite.rating, 0.0)
+        assertTrue(campsite.tags.isEmpty())
     }
 
     @Test
     fun testCampsiteModel_assignedValues() {
         val campsite = Campsite(
             id = "c1",
-            Name = "Pine Creek",
-            OccupancyLimit = 4,
-            Tags = listOf("wifi", "water")
+            name = "Pine Creek",
+            occupancyLimit = 4,
+            tags = listOf("wifi", "water")
         )
         assertEquals("c1", campsite.id)
-        assertEquals("Pine Creek", campsite.Name)
-        assertEquals(4, campsite.OccupancyLimit)
-        assertEquals(2, campsite.Tags.size)
+        assertEquals("Pine Creek", campsite.name)
+        assertEquals(4, campsite.occupancyLimit)
+        assertEquals(2, campsite.tags.size)
     }
 
     @Test

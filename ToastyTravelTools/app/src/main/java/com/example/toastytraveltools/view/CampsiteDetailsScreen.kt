@@ -44,6 +44,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.example.toastytraveltools.R
 import com.example.toastytraveltools.model.Campsite
 import com.example.toastytraveltools.model.Lottery
 import com.example.toastytraveltools.model.Reservation
@@ -100,7 +108,7 @@ fun CampsiteDetailsScreen(
             .document(campsiteId)
             .get()
             .addOnSuccessListener { snapshot ->
-                campsite = snapshot.toObject(Campsite::class.java)
+                campsite = snapshot.toCampsiteSafely()
             }
             .addOnFailureListener { onError(it) }
         Log.d("ReservationDebug", "this device's id: $deviceId")
@@ -141,6 +149,34 @@ fun CampsiteDetailsScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
+        }
+
+        if (snapshot_campsite.name.trim().equals("bruh please", ignoreCase = true) ||
+            snapshot_campsite.imagesUrl.contains("bruh_please", ignoreCase = true)) {
+            Image(
+                painter = painterResource(id = R.drawable.bruh_please),
+                contentDescription = "Campsite Image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "no image attached",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Text(
