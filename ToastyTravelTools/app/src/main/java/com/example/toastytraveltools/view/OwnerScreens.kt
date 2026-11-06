@@ -1,3 +1,15 @@
+/*
+OwnersScreens.kt
+
+Purpose: This is the start screen for the owner mode. It allows the owner add new campsites,
+create lotteries, and edit campsites.
+
+Issues:
+ - add new campsite, create lottery, and edit campsites could have better navigation as you have to
+ press "back" if you want to view all the options
+ - instead maybe have a bottom bar to allow for better navigation
+ */
+
 package com.example.toastytraveltools.view
 
 import androidx.compose.foundation.layout.*

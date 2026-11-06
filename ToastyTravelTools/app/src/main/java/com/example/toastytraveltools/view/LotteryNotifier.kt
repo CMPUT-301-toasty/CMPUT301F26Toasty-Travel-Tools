@@ -1,3 +1,14 @@
+/*
+LotteryNotifier.kt
+
+Purpose: If the user doesn't have notifications on, nothing is displayed. It is
+what displays the actual notification for winning/losing lotteries.
+
+Issues:
+ - No issues at the moment
+*/
+
+
 package com.example.toastytraveltools.view
 
 import android.Manifest

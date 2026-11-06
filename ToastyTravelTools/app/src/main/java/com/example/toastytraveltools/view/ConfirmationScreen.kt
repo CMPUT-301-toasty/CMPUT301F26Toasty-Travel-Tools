@@ -1,3 +1,12 @@
+/*
+ConfirmationScreen.kt
+
+Purpose:
+
+Issues:
+ -
+ */
+
 package com.example.toastytraveltools.view
 
 import androidx.activity.compose.rememberLauncherForActivityResult

@@ -1,3 +1,13 @@
+/*
+ReservationScreen.kt
+
+Purpose: This is the screen that shows the past and present reservations of the user. Users are
+able to cancel any active reservations but a confirmation screen will popup to confirm cancellation.
+
+Issues:
+ - make the active and past buttons more clear on which one is active
+ */
+
 package com.example.toastytraveltools.view
 
 import android.provider.Settings
