@@ -12,6 +12,20 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.toastytraveltools.R
 import com.example.toastytraveltools.model.Reservation
+import com.google.firebase.firestore.FirebaseFirestore
+
+object NotificationPreferences {
+    fun ifEnabled(entrantId: String, action: () -> Unit) {
+        FirebaseFirestore.getInstance()
+            .collection("entrants").document(entrantId).get()
+            .addOnSuccessListener { doc ->
+                if (doc.getBoolean("notificationsEnabled") ?: true) action()
+            }
+    }
+}
+
+// call ifEnabled function before sending notifications so that
+// people who have opted out are never sent a notification
 
 object ReservationNotifier {
     private const val CHANNEL_ID = "reservations"

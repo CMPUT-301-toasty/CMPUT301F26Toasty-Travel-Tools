@@ -16,6 +16,7 @@ import com.example.toastytraveltools.model.AdminImage
 fun AdminImagesScreen(onBack: () -> Unit) {
     val images = remember {
         mutableStateListOf(
+            // place holder images / campsites
             AdminImage(1, "Creekside tent", "Pine Creek Camp", "Campsite"),
             AdminImage(2, "Forest trail", "Pine Creek Camp", "Campsite"),
             AdminImage(3, "Meadow pitch", "Fern Valley Camp", "Campsite"),

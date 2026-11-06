@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,17 +57,19 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
         ?: (get("tags") as? List<*>)?.mapNotNull { it as? String }
         ?: emptyList()
     val qrCodeUrl = getString("QrCodeUrl") ?: getString("qrCodeUrl") ?: ""
+    val ownerId = getString("ownerId") ?: ""
 
     return Campsite(
         id = id,
-        Name = name,
-        Description = desc,
-        Location = loc,
-        OccupancyLimit = limit.toInt(),
-        ImagesUrl = imagesUrl,
-        Rating = rating,
-        Tags = tags,
-        QrCodeUrl = qrCodeUrl
+        name = name,
+        description = desc,
+        location = loc,
+        occupancyLimit = limit.toInt(),
+        imagesUrl = imagesUrl,
+        rating = rating,
+        tags = tags,
+        qrCodeUrl = qrCodeUrl,
+        ownerId = ownerId
     )
 }
 
@@ -82,12 +85,28 @@ fun searchCampsite(
         .addOnSuccessListener { snapshot ->
             val matches = snapshot.documents.map { it.toCampsiteSafely() }
                 .filter { 
-                    it.Name.contains(query, ignoreCase = true) ||
-                    it.Description.contains(query, ignoreCase = true) ||
-                    it.Location.contains(query, ignoreCase = true) ||
-                    it.Tags.any { tag -> tag.contains(query, ignoreCase = true) }
+                    it.name.contains(query, ignoreCase = true) ||
+                    it.description.contains(query, ignoreCase = true) ||
+                    it.location.contains(query, ignoreCase = true) ||
+                    it.tags.any { tag -> tag.contains(query, ignoreCase = true) }
                 }
             onResult(matches)
+        }
+        .addOnFailureListener { onError(it) }
+}
+
+// search for campsites created by the user
+fun searchMyCampsites(
+    ownerId: String,
+    onResult: (List<Campsite>) -> Unit,
+    onError: (Exception) -> Unit
+) {
+    FirebaseFirestore.getInstance()
+        .collection("campsites")
+        .whereEqualTo("ownerId", ownerId)
+        .get()
+        .addOnSuccessListener { snapshot ->
+            onResult(snapshot.documents.map { it.toCampsiteSafely() })
         }
         .addOnFailureListener { onError(it) }
 }
@@ -143,7 +162,7 @@ fun filter_search(
                                     fmt.format(bookStart) <= date && date <= fmt.format(bookEnd)
                         }
                         .flatMap { doc ->
-                            when (val raw = doc.get("campsite_id")) {
+                            when (val raw = doc.get("campsiteIds") ?: doc.get("campsite_id")) {
                                 is List<*> -> raw.filterIsInstance<String>()
                                 is String -> listOf(raw)
                                 else -> emptyList()
@@ -202,30 +221,30 @@ fun CampsiteRow(
             .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
         Text(
-            text = campsite.Name,
+            text = campsite.name,
             fontSize = 18.sp,
         )
 
         Text(
-            text = campsite.Location,
+            text = campsite.location,
             fontSize = 14.sp,
         )
 
-        if (campsite.Tags.isNotEmpty()) {
+        if (campsite.tags.isNotEmpty()) {
             Text(
-                text = "Tags: ${campsite.Tags.joinToString(", ")}",
+                text = "Tags: ${campsite.tags.joinToString(", ")}",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.secondary
             )
         }
 
         Text(
-            text = "Guests Limit: ${campsite.OccupancyLimit}",
+            text = "Guests Limit: ${campsite.occupancyLimit}",
             fontSize = 14.sp,
         )
 
         Text(
-            text = "Rating: ${campsite.Rating}",
+            text = "Rating: ${campsite.rating}",
             fontSize = 14.sp,
         )
     }
@@ -293,6 +312,10 @@ fun SearchScreen(
     var filter_date by remember { mutableStateOf("") }
     var filter_num_guests by remember { mutableStateOf("") }
     var filter_tags by remember { mutableStateOf("") }
+    
+    var filter_my_campsites by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
     Scaffold(
         topBar = {
@@ -414,8 +437,30 @@ fun SearchScreen(
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Checkbox(
+                                    checked = filter_my_campsites,
+                                    onCheckedChange = { filter_my_campsites = it }
+                                )
+                                Text("Only show campsites I created")
+                            }
+                            
                             Button(
                                 onClick = {
+                                    if (filter_my_campsites) {
+                                        // if checkbox is ticked, only filter on my campsites (bypassing the other filters for simplicity based on prompt)
+                                        // if it's meant to intersect we can change that logic
+                                        searchMyCampsites(
+                                            ownerId = deviceId,
+                                            onResult = { results = it; hasSearched = true },
+                                            onError = { results = listOf(); hasSearched = true }
+                                        )
+                                        return@Button
+                                    }
                                     if (filter_location.isNotBlank() &&
                                         filter_date.isNotBlank() &&
                                         filter_num_guests.isNotBlank()
@@ -448,9 +493,10 @@ fun SearchScreen(
 
                 // results
                 if (hasSearched) {
+                    val errMessage = if (filter_my_campsites) "You own no campsites" else "No campsites found"
                     if (results.isEmpty()) {
                         Text(
-                            text = "No campsites found",
+                            text = errMessage,
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.padding(top = 16.dp)
                         )
