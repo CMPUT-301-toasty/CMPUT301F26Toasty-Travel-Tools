@@ -21,7 +21,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 @Composable
 fun HomeScreen(
     onNavigateToUser: () -> Unit,
-    onNavigateToOwner: () -> Unit
+    onNavigateToOwner: () -> Unit,
+    onNavigateToAdmin: () -> Unit
 ) {
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
@@ -214,6 +215,17 @@ fun HomeScreen(
             ) {
                 Text("Owner Mode")
             }
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onNavigateToAdmin,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+            ) {
+                Text("Admin Mode")
+            }
+
         }
     }
 }
