@@ -1,4 +1,12 @@
-
+/*
+* CampsiteRepository.kt
+* Purpose: Maintains a live list of campsites, handling add, update and deletion
+* of campsites. As well as the deletion of campsite's corresponding
+* reservations and lotteries
+*
+* Issues:
+* - Reservations should probably be matched by ID, not name
+ */
 package com.example.toastytraveltools.controller
 
 import androidx.compose.runtime.mutableStateListOf
@@ -10,6 +18,18 @@ import com.example.toastytraveltools.view.toCampsiteSafely
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 import com.google.firebase.firestore.DocumentReference
+
+/**
+ * Manages campsite data which is also stored in the Firebase collection "campsites"
+ *
+ * Listens for changes to the collection, keeps the variables campsites, isLoading,
+ * and errorMessage up to date
+ *
+ * @property campsites, list of all campsites currently loaded
+ * @property isLoading, is true until the first snapshot
+ * @property errorMessage brief description of the load error, can also be null
+ * if the load was successful
+ */
 
 class CampsiteRepository {
 
@@ -27,6 +47,16 @@ class CampsiteRepository {
     var errorMessage by mutableStateOf<String?>(null)
         private set
 
+    /**
+     * Add a new campsite to Firebase
+     *
+     * new documentId is created and stored in the 'id' field
+     *
+     * @param campsite is the campsite we add
+     * @param onSuccess called when the campsite is saved
+     * @param onFailure called along with the exception if the save doesn't work
+     */
+
     // Add campsite
     fun addCampsite(
         campsite: Campsite,
@@ -41,6 +71,16 @@ class CampsiteRepository {
             .addOnFailureListener { onFailure(it) }
     }
 
+    /**
+     * Updates an already existing campsite with given data
+     *
+     * Find document through campsite.id, a new one is created
+     * if there is no document with that id
+     *
+     * @param campsite The updated campsite
+     * @param onSuccess called after the update works
+     * @param onFailure called with the exception when the update fails
+     */
     // Update campsite
     fun updateCampsite(
         campsite: Campsite,
@@ -52,11 +92,28 @@ class CampsiteRepository {
             .addOnFailureListener { onFailure(it) }
     }
 
+    /**
+     * Delete the campsite document
+     *
+     * @param campsite the campsite we want to delete, use id to reference
+     */
     // Simple campsite deletion
     fun deleteCampsite(campsite: Campsite) {
         campsitesRef.document(campsite.id).delete()
     }
 
+    /**
+     * Delete a campsite and its data
+     *
+     * Delete reservation where campsiteName matches the campsite's name
+     * Remove campsite ID from all the lotteries that contain that ID
+     * Delete the campsite document itself
+     *
+     * All three steps must be completed
+     * @param campsite the campsite we delete, id and name cannot be blank
+     * @param onSuccess called after all deletions and updates are finished
+     * @param onFailure called with exception if any of the steps fail
+     */
     // Delete campsite and associated reservations and lottery references
     fun deleteCampsiteAndRelatedData(
         campsite: Campsite,
