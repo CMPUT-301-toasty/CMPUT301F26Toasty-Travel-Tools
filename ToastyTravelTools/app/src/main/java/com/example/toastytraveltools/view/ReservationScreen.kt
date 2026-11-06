@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextButton
@@ -40,6 +41,15 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.rememberDateRangePickerState
+import androidx.compose.ui.text.input.KeyboardType
+import com.example.toastytraveltools.model.Lottery
+import java.util.Calendar
+import java.util.TimeZone
 
 // loads the reservations that belong to one entrant document, using the Reservation class
 fun loadReservations(
@@ -123,7 +133,8 @@ fun ReservationScreen (
     onNavigateBack: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
-    onProfileClick: (String) -> Unit = {}
+    onProfileClick: (String) -> Unit = {},
+    onClaimed: (Reservation) -> Unit = {}
 ) {
     var active_clicked by remember { mutableStateOf(true) }
 
@@ -133,12 +144,65 @@ fun ReservationScreen (
     var reservations by remember { mutableStateOf(listOf<Reservation>()) }
     var selected by remember { mutableStateOf<Reservation?>(null) }
 
+    var claimable by remember { mutableStateOf(listOf<Lottery>()) }
+    var showClaimDialog by remember { mutableStateOf(false) }
+    var claiming by remember { mutableStateOf(false) }
+    var claimMessage by remember { mutableStateOf<String?>(null) }
+    var claimCampsiteName by remember { mutableStateOf("") }
+
     LaunchedEffect(deviceId) {
         Log.d("ReservationDebug", "this device's id: $deviceId")
         loadReservations(
             entrantId = deviceId,
             onResult = { reservations = it },
             onError = { reservations = listOf() }
+        )
+    }
+    LaunchedEffect(deviceId) {
+        loadClaimableLotteries(
+            entrantId = deviceId,
+            onResult = { claimable = it },
+            onError = { claimable = listOf() }
+        )
+    }
+    LaunchedEffect(claimable) {
+        val campsiteId = claimable.firstOrNull()?.campsiteIds?.firstOrNull()
+        if (campsiteId != null) {
+            loadCampsiteName(campsiteId) { claimCampsiteName = it }
+        }
+    }
+
+    val lotteryToClaim = claimable.firstOrNull()
+
+    if (showClaimDialog && lotteryToClaim != null) {
+        ClaimSpotDialog(
+            lottery = lotteryToClaim,
+            campsiteName = claimCampsiteName,
+            claiming = claiming,
+            error = claimMessage,
+            onDismiss = { if (!claiming) showClaimDialog = false },
+            onClaim = { startMillis, endMillis, guests ->
+                claiming = true
+                claimMessage = null
+                claimLotterySpot(
+                    lotteryId = lotteryToClaim.id,
+                    entrantId = deviceId,
+                    startMillis = startMillis,
+                    endMillis = endMillis,
+                    guests = guests,
+                    onSuccess = { reservation ->
+                        claiming = false
+                        showClaimDialog = false
+
+                        ReservationNotifier.send(context, reservation)
+                        onClaimed(reservation)
+                    },
+                    onError = {
+                        claiming = false
+                        claimMessage = it.localizedMessage ?: "Could not claim your spot"
+                    }
+                )
+            }
         )
     }
 
@@ -202,11 +266,26 @@ fun ReservationScreen (
             ))
         },
         bottomBar = {
-            BottomButtons_Reservation(
-                onSearchClick = onSearchClick,
-                onReservationClick = onReservationClick,
-                onProfileClick = onProfileClick
-            )
+            Column {
+                if (claimable.isNotEmpty()) {
+                    Button(
+                        onClick = { showClaimDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        shape = RectangleShape
+                    ) {
+                        Text(
+                            "Claim your spot at $claimCampsiteName"
+                        )
+                    }
+                }
+                BottomButtons_Reservation(
+                    onSearchClick = onSearchClick,
+                    onReservationClick = onReservationClick,
+                    onProfileClick = onProfileClick
+                )
+            }
         }
     ) { innerPadding ->
 
@@ -307,4 +386,111 @@ fun ReservationScreen (
         }
     }
 
+}
+
+private fun pickerDateToLocal(utcMillis: Long, endOfDay: Boolean): Long {
+    val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
+    utc.timeInMillis = utcMillis
+
+    val local = Calendar.getInstance()
+    local.clear()
+    local.set(utc.get(Calendar.YEAR), utc.get(Calendar.MONTH), utc.get(Calendar.DAY_OF_MONTH))
+    return if (endOfDay) endOfDay(local.timeInMillis) else startOfDay(local.timeInMillis)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ClaimSpotDialog(
+    lottery: Lottery,
+    campsiteName: String,
+    claiming: Boolean,
+    error: String?,
+    onDismiss: () -> Unit,
+    onClaim: (Long, Long, Int) -> Unit
+) {
+    val bookingStart = lottery.bookingStartDate?.toDate()?.time?.let { startOfDay(it) }
+    val bookingEnd = lottery.bookingEndDate?.toDate()?.time?.let { endOfDay(it) }
+
+    // only the days inside the booking window can be picked
+    val state = rememberDateRangePickerState(
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
+                val start = pickerDateToLocal(utcTimeMillis, false)
+                val end = pickerDateToLocal(utcTimeMillis, true)
+                return (bookingStart == null || start >= bookingStart) &&
+                        (bookingEnd == null || end <= bookingEnd)
+            }
+        }
+    )
+
+    var guests by remember { mutableStateOf("1") }
+    var inputError by remember { mutableStateOf<String?>(null) }
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                enabled = !claiming,
+                onClick = {
+                    val start = state.selectedStartDateMillis
+                    val end = state.selectedEndDateMillis ?: start
+                    val guestCount = guests.toIntOrNull()
+
+                    when {
+                        start == null || end == null ->
+                            inputError = "Pick your start and end dates"
+                        guestCount == null || guestCount < 1 ->
+                            inputError = "Enter the number of guests"
+                        else -> {
+                            inputError = null
+                            onClaim(
+                                pickerDateToLocal(start, false),
+                                pickerDateToLocal(end, true),
+                                guestCount
+                            )
+                        }
+                    }
+                }
+            ) {
+                Text(if (claiming) "Claiming..." else "Claim")
+            }
+        },
+        dismissButton = {
+            TextButton(enabled = !claiming, onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        Column {
+            DateRangePicker(
+                state = state,
+                modifier = Modifier.weight(1f),
+                title = {
+                    Text(
+                        text = "Pick your dates at $campsiteName",
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            )
+
+            OutlinedTextField(
+                value = guests,
+                onValueChange = { guests = it; inputError = null },
+                label = { Text("Guests") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            )
+
+            (inputError ?: error)?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
+    }
 }

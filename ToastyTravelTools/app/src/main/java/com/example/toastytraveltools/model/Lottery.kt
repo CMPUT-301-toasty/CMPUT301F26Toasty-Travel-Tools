@@ -15,5 +15,9 @@ data class Lottery(
     var numberOfWinners: Int = 0,
     var waitlist: List<String> = emptyList(),
     var waitlistCapacity: Int? = null,
-    var status: String = ""
+    var status: String = "",
+    var winners: List<String> = emptyList(),
+    var notifiedWinners: List<String> = emptyList(),
+    var spotsRemaining: Int = 0,
+    var reservations: List<Reservation> = emptyList()
 )

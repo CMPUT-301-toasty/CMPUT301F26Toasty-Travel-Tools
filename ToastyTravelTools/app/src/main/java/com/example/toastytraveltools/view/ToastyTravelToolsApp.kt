@@ -1,24 +1,48 @@
 
 package com.example.toastytraveltools.view
 
+import android.provider.Settings
 import com.example.toastytraveltools.AdminDashboardScreen
 import com.example.toastytraveltools.AdminCampsitesScreen
 import com.example.toastytraveltools.AdminProfilesScreen
 import com.example.toastytraveltools.AdminImagesScreen
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.controller.LotteryRepository
 import com.example.toastytraveltools.controller.ReservationRepository
+import com.example.toastytraveltools.model.Reservation
 
 @Composable
 fun ToastyTravelToolsApp() {
 
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+
+    // draw any lottery whose registration period has ended
+    LaunchedEffect(Unit) {
+        drawDueLotteries()
+    }
+
+    // notify this user if they won a lottery
+    DisposableEffect(deviceId) {
+        val listener = listenForLotteryWins(context, deviceId)
+        onDispose { listener.remove() }
+    }
+
     val navController = rememberNavController()
+
+    var claimedReservation by remember { mutableStateOf<Reservation?>(null) }
 
     val campsiteRepository = remember { CampsiteRepository() }
     val lotteryRepository = remember { LotteryRepository() }
@@ -164,7 +188,11 @@ fun ToastyTravelToolsApp() {
                 onNavigateBack = { navController.popBackStack("home", inclusive = false) },
                 onSearchClick = { navController.navigate("search") },
                 onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { id -> navController.navigate("profile/$id") }
+                onProfileClick = { id -> navController.navigate("profile/$id") },
+                onClaimed = { reservation ->
+                    claimedReservation = reservation
+                    navController.navigate("claimed_confirmation")
+                }
             )
         }
 
@@ -177,6 +205,17 @@ fun ToastyTravelToolsApp() {
                 onReservationClick = { navController.navigate("reservation") },
                 onProfileClick = { profileId -> navController.navigate("profile/$profileId") }
             )
+        }
+
+        composable("claimed_confirmation") {
+
+            val reservation = claimedReservation
+
+            if (reservation != null) {
+                ConfirmationScreen(reservation = reservation)
+            } else {
+                Text("Loading...")
+            }
         }
     }
 }
