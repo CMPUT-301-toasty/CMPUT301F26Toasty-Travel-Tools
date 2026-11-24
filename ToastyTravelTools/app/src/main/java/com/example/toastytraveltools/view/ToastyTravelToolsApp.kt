@@ -94,7 +94,7 @@ fun ToastyTravelToolsApp() {
                     navController.navigate("owner_edit_campsite")
                 },
                 onNavigateBack = {
-                    navController.popBackStack()
+                    navController.navigate("home")
                 },
                 onOwnerScreenClick = {
                     navController.navigate("owner_home")
@@ -111,12 +111,24 @@ fun ToastyTravelToolsApp() {
 
         composable("owner_booking") {
             OwnerScreenBooking(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.navigate("home") },
+                onOwnerScreenClick = {
+                    navController.navigate("owner_home")
+                },
+
+                onLotteryClick = {
+                    navController.navigate("owner_lottery")
+                },
+                onBookingClick = {
+                    navController.navigate("owner_booking")
+                },
+                onProfileClick = { id -> navController.navigate("owner_profile/$id") },
+                userId = deviceId
             )
         }
         composable("owner_lottery") {
             OwnerScreenLottery(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.navigate("home") }
             )
         }
 
@@ -124,7 +136,7 @@ fun ToastyTravelToolsApp() {
             val id = backStackEntry.arguments?.getString("deviceId") ?: ""
             OwnerProfileScreen(
                 userId = id,
-                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
+                onNavigateBack = { navController.navigate("home") },
             )
         }
 

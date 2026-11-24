@@ -1,7 +1,5 @@
 package com.example.toastytraveltools.view
-
-class OwnerProfileScreen(
+fun OwnerProfileScreen(
     userId: String,
     onNavigateBack: () -> Unit,
-) {
-}
+) {}
