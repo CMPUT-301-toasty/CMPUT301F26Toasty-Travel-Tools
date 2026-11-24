@@ -95,7 +95,36 @@ fun ToastyTravelToolsApp() {
                 },
                 onNavigateBack = {
                     navController.popBackStack()
-                }
+                },
+                onOwnerScreenClick = {
+                    navController.navigate("owner_home")
+                },
+                onBookingClick = {
+                    navController.navigate("owner_booking")
+                },
+                onLotteryClick = {
+                    navController.navigate("owner_lottery")
+                },
+                onProfileClick = { id -> navController.navigate("owner_profile/$id") }
+            )
+        }
+
+        composable("owner_booking") {
+            OwnerScreenBooking(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+        composable("owner_lottery") {
+            OwnerScreenLottery(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("owner_profile/{deviceId}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("deviceId") ?: ""
+            OwnerProfileScreen(
+                userId = id,
+                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
             )
         }
 

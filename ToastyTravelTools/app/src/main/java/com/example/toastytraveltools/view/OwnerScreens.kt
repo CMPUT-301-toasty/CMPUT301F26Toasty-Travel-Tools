@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
+import androidx.compose.ui.graphics.RectangleShape
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.controller.LotteryRepository
 import com.example.toastytraveltools.model.Campsite
@@ -32,13 +33,71 @@ import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale
 
+
+@Composable
+fun BottomButtons_Owner(
+    onOwnerScreenClick: () -> Unit,
+    onLotteryClick: () -> Unit,
+    onBookingClick: () -> Unit,
+    onProfileClick: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Button(
+            onClick = onOwnerScreenClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Sites", maxLines = 1)
+        }
+        // filled button = the screen you're on
+        OutlinedButton(
+            onClick = onLotteryClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Lotteries", maxLines = 1)
+        }
+        OutlinedButton(
+            onClick = onBookingClick,
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Bookings", maxLines = 1)
+        }
+        OutlinedButton(
+            onClick = { onProfileClick(deviceId) },
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+            shape = RectangleShape
+        ) {
+            Text("Profile", maxLines = 1)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OwnerHomeScreen(
     onNavigateToAddCampsite: () -> Unit,
     onNavigateToCreateLottery: () -> Unit,
     onNavigateToEditCampsite: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOwnerScreenClick: () -> Unit,
+    onBookingClick: () -> Unit,
+    onLotteryClick: () -> Unit,
+    onProfileClick: (String) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -50,6 +109,16 @@ fun OwnerHomeScreen(
                     }
                 }
             )
+        },
+        bottomBar = {
+            Column {
+                BottomButtons_Owner(
+                    onOwnerScreenClick = onOwnerScreenClick,
+                    onBookingClick = onBookingClick,
+                    onLotteryClick = onLotteryClick,
+                    onProfileClick = onProfileClick
+                )
+            }
         }
     ) { innerPadding ->
         Column(
