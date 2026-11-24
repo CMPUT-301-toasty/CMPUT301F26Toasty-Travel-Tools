@@ -1,12 +1,19 @@
-/*
- * Campsite.kt
+/**
+ * Represents a campsite stored in the Firestore database.
  *
- * Purpose: Model class that represents a campsite
- * Relates back to documents in Firestore "campsites" collection
+ * This model is used by campsite browsing, searching, and
+ * administrative features.
  *
- * Issues:
- * - ImagesURL could be altered to hold multiple images later on
- * - Should be more error checking/validation on OccupancyLimit and Rating
+ * @property id Firestore document ID of the campsite.
+ * @property name Display name of the campsite.
+ * @property description Description of the campsite.
+ * @property location Physical location of the campsite.
+ * @property occupancyLimit Maximum number of guests allowed.
+ * @property imagesUrl URL of the campsite image.
+ * @property rating Rating assigned to the campsite.
+ * @property tags List of descriptive campsite tags.
+ * @property qrCodeUrl URL of the campsite QR code.
+ * @property ownerId ID of the user who owns the campsite.
  */
 package com.example.toastytraveltools.model
 
