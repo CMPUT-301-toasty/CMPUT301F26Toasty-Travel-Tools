@@ -55,6 +55,16 @@ import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.UserProfile
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import com.google.firebase.storage.FirebaseStorage
 /**
  * ProfileScreen.kt
  *
@@ -125,6 +135,59 @@ fun setNotificationsEnabled(
         .addOnSuccessListener { onDone() }
         .addOnFailureListener { onError(it) }
 }
+
+
+/**
+ * NEED TO ADD COMMENTS
+ */
+fun uploadProfileImage(
+    userId: String,
+    imageUri: Uri,
+    onDone: (String) -> Unit,
+    onError: (Exception) -> Unit
+) {
+    val imageRef = FirebaseStorage.getInstance()
+        .reference
+        .child("profile_images/$userId.jpg")
+
+    imageRef.putFile(imageUri)
+        .continueWithTask { task ->
+            if (!task.isSuccessful) throw task.exception ?: Exception("Upload failed")
+            imageRef.downloadUrl
+        }
+        .addOnSuccessListener { downloadUri ->
+            val url = downloadUri.toString()
+            FirebaseFirestore.getInstance()
+                .collection("entrants")
+                .document(userId)
+                .set(mapOf("profileImageUrl" to url), SetOptions.merge())
+                .addOnSuccessListener { onDone(url) }
+                .addOnFailureListener { onError(it) }
+        }
+        .addOnFailureListener { onError(it) }
+}
+
+/**
+ * NEED TO ADD COMMENTS
+ */
+fun removeProfileImage(
+    userId: String,
+    onDone: () -> Unit,
+    onError: (Exception) -> Unit
+) {
+    FirebaseStorage.getInstance()
+        .reference
+        .child("profile_images/$userId.jpg")
+        .delete()
+
+    FirebaseFirestore.getInstance()
+        .collection("entrants")
+        .document(userId)
+        .set(mapOf("profileImageUrl" to ""), SetOptions.merge())
+        .addOnSuccessListener { onDone() }
+        .addOnFailureListener { onError(it) }
+}
+
 /**
  * Loads an entrant's profile from Firestore.
  *
@@ -177,6 +240,11 @@ fun deleteProfile(
     userId: String,
     onDeleted: () -> Unit
 ) {
+    FirebaseStorage.getInstance()
+        .reference
+        .child("profile_images/$userId.jpg")
+        .delete()
+
     FirebaseFirestore.getInstance()
         .collection("entrants")
         .document(userId)
@@ -274,6 +342,29 @@ fun ProfileScreen(
     var emailError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
 
+    var uploadingPhoto by remember { mutableStateOf(false) }
+    val photoPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            uploadingPhoto = true
+            message = null
+            uploadProfileImage(
+                userId = userId,
+                imageUri = uri,
+                onDone = { url ->
+                    uploadingPhoto = false
+                    profile = profile?.copy(profileImageUrl = url)
+                    message = "Profile picture updated"
+                },
+                onError = {
+                    uploadingPhoto = false
+                    message = "Could not upload picture: ${it.message}"
+                }
+            )
+        }
+    }
+
     LaunchedEffect(userId) {
         loadProfile(
             userId = userId,
@@ -333,6 +424,69 @@ fun ProfileScreen(
                 current == null -> CircularProgressIndicator()
 
                 !isEditing -> {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            if (current.profileImageUrl.isNotBlank()) {
+                                AsyncImage(
+                                    model = current.profileImageUrl,
+                                    contentDescription = "Profile picture",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(96.dp).clip(CircleShape)
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(96.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(current.name.take(1).uppercase())
+                                }
+                            }
+                            if (uploadingPhoto) {
+                                CircularProgressIndicator()
+                            }
+                        }
+
+                        TextButton(
+                            onClick = {
+                                photoPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            enabled = !uploadingPhoto
+                        ) {
+                            Text(if (uploadingPhoto) "Uploading..." else "Change Photo")
+                        }
+
+
+                        if (current.profileImageUrl.isNotBlank()) {
+                            TextButton(
+                                onClick = {
+                                    uploadingPhoto = true
+                                    removeProfileImage(
+                                        userId = userId,
+                                        onDone = {
+                                            uploadingPhoto = false
+                                            profile = profile?.copy(profileImageUrl = "")
+                                            message = "Profile picture removed"
+                                        },
+                                        onError = {
+                                            uploadingPhoto = false
+                                            message = "Could not remove picture: ${it.message}"
+                                        }
+                                    )
+                                },
+                                enabled = !uploadingPhoto
+                            ) {
+                                Text("Remove Photo")
+                            }
+                        }
+                    }
                     Text("Name", style = MaterialTheme.typography.labelMedium)
                     Text(current.name)
 
@@ -353,24 +507,14 @@ fun ProfileScreen(
                             enabled = !togglingNotifications,
                             onCheckedChange = { enabled ->
                                 togglingNotifications = true
-                                profile = UserProfile(
-                                    name = current.name,
-                                    email = current.email,
-                                    phone = current.phone,
-                                    notificationsEnabled = enabled
-                                )
+                                profile = current.copy(notificationsEnabled = enabled)
                                 setNotificationsEnabled(
                                     userId = userId,
                                     enabled = enabled,
                                     onDone = { togglingNotifications = false },
                                     onError = {
                                         togglingNotifications = false
-                                        profile = UserProfile(
-                                            name = current.name,
-                                            email = current.email,
-                                            phone = current.phone,
-                                            notificationsEnabled = !enabled
-                                        )
+                                        profile = current.copy(notificationsEnabled = !enabled)
                                         message = "Could not update notifications: ${it.message}"
                                     }
                                 )
@@ -467,11 +611,10 @@ fun ProfileScreen(
                                 phoneError = validatePhone(phone)
 
                                 if (nameError == null && emailError == null && phoneError == null) {
-                                    val updated = UserProfile(
+                                    val updated = current.copy(
                                         name = name.trim(),
                                         email = email.trim(),
-                                        phone = phone.trim(),
-                                        notificationsEnabled = current.notificationsEnabled
+                                        phone = phone.trim()
                                     )
                                     saving = true
                                     saveProfile(

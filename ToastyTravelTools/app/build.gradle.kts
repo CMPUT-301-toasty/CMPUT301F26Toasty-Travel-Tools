@@ -57,4 +57,5 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore")
     implementation("androidx.navigation:navigation-compose:2.9.8")
     implementation("com.google.firebase:firebase-storage")
+    implementation("io.coil-kt:coil-compose:2.7.0")
 }
