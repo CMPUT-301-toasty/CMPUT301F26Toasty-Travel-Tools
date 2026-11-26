@@ -13,8 +13,7 @@
  * Firebase Storage deletion requires Storage access to be enabled
  * in the Firebase project.
  */
-package com.example.toastytraveltools
-import com.example.toastytraveltools.view.toCampsiteSafely
+package com.example.toastytraveltools.view
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
