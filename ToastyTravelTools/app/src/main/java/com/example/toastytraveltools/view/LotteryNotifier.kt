@@ -27,14 +27,16 @@ import com.example.toastytraveltools.model.Lottery
 object LotteryNotifier {
     private const val CHANNEL_ID = "lotteries"
 
+    // android 13+ needs the runtime permission, older versions always can
+    fun canPost(context: Context): Boolean =
+        Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
     @SuppressLint("MissingPermission")
     fun send(context: Context, l: Lottery, win: Boolean, campsiteName: String = "") {
         //If user has won the lottery, set win argument to true
-        // android 13+ needs the runtime permission, otherwise do nothing
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-            != PackageManager.PERMISSION_GRANTED
-        ) return
+        if (!canPost(context)) return
 
         if (Build.VERSION.SDK_INT >= 26) {
             val channel = NotificationChannel(

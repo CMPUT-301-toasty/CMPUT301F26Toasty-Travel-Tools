@@ -45,4 +45,5 @@ data class Reservation (
     val guests: Int = 0,
     var reviewScore: Int? = null,
     var reviewMessage: String? = null
+    val status: String = "active"
 )
