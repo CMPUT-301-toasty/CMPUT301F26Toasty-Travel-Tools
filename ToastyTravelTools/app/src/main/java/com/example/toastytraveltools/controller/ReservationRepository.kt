@@ -97,7 +97,8 @@ class ReservationRepository {
                             .asReservationTimestamp(),
                         endDate = document.get("endDate")
                             .asReservationTimestamp(),
-                        guests = (document.get("guests") as? Number)?.toInt() ?: 0
+                        guests = (document.get("guests") as? Number)?.toInt() ?: 0,
+                        status = document.getString("status") ?: document.getString("Status") ?: "active"
                     )
 
                     _reservations.add(reservation)
