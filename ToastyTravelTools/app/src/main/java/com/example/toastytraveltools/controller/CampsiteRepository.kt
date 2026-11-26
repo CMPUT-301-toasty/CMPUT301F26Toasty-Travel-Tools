@@ -21,6 +21,7 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.SetOptions
+import android.util.Log
 /**
  * Repository responsible for managing campsite data in Firebase Firestore.
  *
@@ -301,7 +302,10 @@ class CampsiteRepository {
 
             snapshot?.documents?.forEach { document ->
                 try {
+                    Log.d("CAMPSITE_CHECK", "ID: ${document.id}")
+                    Log.d("CAMPSITE_CHECK", "DATA: ${document.data}")
                     val campsite = document.toCampsiteSafely()
+                    Log.d("CAMPSITE_CHECK", "CONVERTED NAME: ${campsite.name}")
                     _campsites.add(campsite)
                 } catch (e: Exception) {
                     errorMessage =

@@ -100,7 +100,8 @@ fun loadOwnerReservations(
                                 startDate = doc.get("startDate").asReservationTimestamp(),
                                 endDate = doc.get("endDate").asReservationTimestamp(),
                                 guests = (doc.get("guests") as? Number)?.toInt() ?: 0,
-                                reviewScore = (doc.get("reviewScore") as? Number)?.toInt()
+                                reviewScore = (doc.get("reviewScore") as? Number)?.toInt(),
+                                status = doc.getString("status") ?: doc.getString("Status") ?: "active"
                             )
                         } else {
                             null
@@ -175,7 +176,7 @@ fun OwnerScreenBooking(
     onProfileClick: (String) -> Unit,
     userId: String
 ) {
-    var activeClicked by remember { mutableStateOf(true) }
+    var selectedTab by remember { mutableStateOf("active") } // "active", "past", "canceled"
     var reservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
     var selected by remember { mutableStateOf<Reservation?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -202,7 +203,14 @@ fun OwnerScreenBooking(
 
     val now = Timestamp.now()
     val shown = reservations
-        .filter { if (activeClicked) it.endDate > now else it.endDate <= now }
+        .filter {
+            when (selectedTab) {
+                "active" -> it.status == "active" && it.endDate > now
+                "past" -> it.status == "active" && it.endDate <= now
+                "canceled" -> it.status == "canceled"
+                else -> true
+            }
+        }
         .sortedBy { it.startDate }
 
     val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
@@ -224,8 +232,11 @@ fun OwnerScreenBooking(
                     onClick = {
                         cancelReservation(
                             reservationId = toCancel.id,
+                            cancelledStatus = "canceled",
                             onDone = {
-                                reservations = reservations.filter { it.id != toCancel.id }
+                                reservations = reservations.map {
+                                    if (it.id == toCancel.id) it.copy(status = "canceled") else it
+                                }
                                 selected = null
                             },
                             onError = { selected = null }
@@ -272,18 +283,18 @@ fun OwnerScreenBooking(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // Active and Past buttons
+            // Active, Past, and Canceled buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Button(
-                    onClick = { activeClicked = true },
+                    onClick = { selectedTab = "active" },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
                     shape = RectangleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (activeClicked) {
+                        containerColor = if (selectedTab == "active") {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.secondary
@@ -294,12 +305,12 @@ fun OwnerScreenBooking(
                 }
 
                 Button(
-                    onClick = { activeClicked = false },
+                    onClick = { selectedTab = "past" },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
                     shape = RectangleShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (!activeClicked) {
+                        containerColor = if (selectedTab == "past") {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.secondary
@@ -307,6 +318,22 @@ fun OwnerScreenBooking(
                     )
                 ) {
                     Text("Past")
+                }
+
+                Button(
+                    onClick = { selectedTab = "canceled" },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 4.dp),
+                    shape = RectangleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selectedTab == "canceled") {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.secondary
+                        }
+                    )
+                ) {
+                    Text("Canceled")
                 }
             }
 
@@ -321,8 +348,14 @@ fun OwnerScreenBooking(
                     CircularProgressIndicator()
                 }
             } else if (shown.isEmpty()) {
+                val emptyMessage = when (selectedTab) {
+                    "active" -> "No active reservations"
+                    "past" -> "No past reservations"
+                    "canceled" -> "No canceled reservations"
+                    else -> "No reservations"
+                }
                 Text(
-                    text = if (activeClicked) "No active reservations" else "No past reservations",
+                    text = emptyMessage,
                     style = MaterialTheme.typography.bodyLarge
                 )
             } else {
@@ -370,7 +403,17 @@ fun OwnerScreenBooking(
                                     )
                                 }
 
-                                if (activeClicked) {
+                                if (reservation.status == "canceled") {
+                                    Text(
+                                        text = "Status: Canceled",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    )
+                                }
+
+                                if (selectedTab == "active") {
                                     Button(
                                         onClick = { selected = reservation },
                                         modifier = Modifier

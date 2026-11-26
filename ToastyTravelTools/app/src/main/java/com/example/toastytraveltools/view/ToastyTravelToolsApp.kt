@@ -11,10 +11,6 @@ Issues:
 package com.example.toastytraveltools.view
 
 import android.provider.Settings
-import com.example.toastytraveltools.AdminDashboardScreen
-import com.example.toastytraveltools.AdminCampsitesScreen
-import com.example.toastytraveltools.AdminProfilesScreen
-import com.example.toastytraveltools.AdminImagesScreen
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -24,6 +20,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -33,18 +32,27 @@ import com.example.toastytraveltools.controller.ReservationRepository
 import com.example.toastytraveltools.model.Reservation
 
 @Composable
-fun ToastyTravelToolsApp() {
+fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
 
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
-    // draw any lottery whose registration period has ended
-    LaunchedEffect(Unit) {
-        drawDueLotteries()
+    // draw any lottery whose registration period has ended, every time the app comes
+    // to the foreground (reopening from recents doesn't recreate the activity)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START) drawDueLotteries()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // notify this user if they won a lottery
-    DisposableEffect(deviceId) {
+    // wait until notifications are allowed, otherwise the win would be marked as
+    // notified while the permission dialog is still showing and the notification dropped
+    DisposableEffect(deviceId, notificationsAllowed) {
+        if (!notificationsAllowed) return@DisposableEffect onDispose { }
         val listener = listenForLotteryWins(context, deviceId)
         val lossListener = listenForLotteryLosses(context.applicationContext, deviceId)
         onDispose {
