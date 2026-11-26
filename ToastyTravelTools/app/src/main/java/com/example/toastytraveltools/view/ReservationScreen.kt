@@ -78,8 +78,8 @@ fun loadReservations(
         .get()
         .addOnSuccessListener { snapshot ->
             val reservations = snapshot.documents.mapNotNull { doc ->
-                // the class has an id field, so fill it in with the document's ID
-                doc.toObject(Reservation::class.java)?.copy(id = doc.id)
+                val status = doc.getString("status") ?: doc.getString("Status") ?: "active"
+                doc.toObject(Reservation::class.java)?.copy(id = doc.id, status = status)
             }
             Log.d("ReservationDebug", "found ${reservations.size} reservations for entrant_id=$entrantId")
             onResult(reservations)
@@ -87,10 +87,12 @@ fun loadReservations(
         .addOnFailureListener { onError(it) }
 }
 
-// deletes the reservation, and if it came from a lottery also removes it from that
-// lottery's reservations list. The winner is added to cancelledWinners so the win is used up
+// updates the reservation status in Firestore (e.g. "canceled"),
+// and if it came from a lottery also removes it from that lottery's reservations list.
+// The winner is added to cancelledWinners so the win is used up
 fun cancelReservation(
     reservationId: String,
+    cancelledStatus: String = "canceled",
     onDone: () -> Unit,
     onError: (Exception) -> Unit
 ) {
@@ -118,7 +120,7 @@ fun cancelReservation(
             tx.update(lotteryRef, updates)
         }
 
-        tx.delete(reservationRef)
+        tx.update(reservationRef, "status", cancelledStatus)
         null
     }
         .addOnSuccessListener { onDone() }
@@ -446,10 +448,15 @@ fun ReservationScreen (
         )
     }
 
-    // active = now is before the end time, past = the end time has passed
     val now = Timestamp.now()
     val shown = reservations
-        .filter { if (active_clicked) it.endDate > now else it.endDate <= now }
+        .filter {
+            if (active_clicked) {
+                it.status == "active" && it.endDate > now
+            } else {
+                it.status != "active" || it.endDate <= now
+            }
+        }
         .sortedBy { it.startDate }
     val fmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
@@ -471,9 +478,10 @@ fun ReservationScreen (
                     onClick = {
                         cancelReservation(
                             reservationId = toCancel.id,
+                            cancelledStatus = "canceled",
                             onDone = {
-                                reservations = reservations.filter {
-                                    it.id != toCancel.id
+                                reservations = reservations.map {
+                                    if (it.id == toCancel.id) it.copy(status = "canceled") else it
                                 }
                                 selected = null
                             },
