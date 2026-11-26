@@ -9,11 +9,12 @@ claimLotterySpot allows the winner of the lottery to book dates. Validation
 check for valid user, winner and applicable booking dates. Creates reservation
 and changes spotsRemaining listenForLotteryWins and listenForLotteryLosses checks
 Firestore and sends notification per person, not counting those with no notifications on
+loadBookedDates finds the dates that are already reserved at the lottery's campsite so
+the winner is only shown dates that are still available
 
 Issues:
- - two winners can book the same dates, because the code never checks the bookings against
- other winners
  - winners of lottery cannot be notified if they have notifications off
+ - booked dates are matched by campsite name, so two campsites with the same name share bookings
 */
 
 
@@ -29,8 +30,10 @@ import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import java.security.SecureRandom
+import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
+import java.util.Locale
 
 fun drawLottery(
     lotteryId: String,
@@ -138,6 +141,15 @@ fun claimLotterySpot(
         val entrant = tx.get(db.collection("entrants").document(entrantId))
             .toObject(UserProfile::class.java)
 
+        // the reservations other winners already made, read from the "reservations" collection
+        // so a reservation that was cancelled doesn't block those dates anymore
+        val otherReservations = lottery.reservations
+            .filter { it.entrantId != entrantId }
+            .mapNotNull { r ->
+                tx.get(db.collection("reservations").document(r.id))
+                    .toObject(Reservation::class.java)
+            }
+
         check(entrantId in lottery.winners) { "Only lottery winners can claim a spot" }
 
         // one reservation per winner
@@ -160,6 +172,14 @@ fun claimLotterySpot(
         }
 
         check(lottery.spotsRemaining > 0) { "All spots have been claimed by other winners" }
+
+        // two winners can't book the same days
+        val bookedByOthers = otherReservations.map { r ->
+            Pair(startOfDay(r.startDate.toDate().time), endOfDay(r.endDate.toDate().time))
+        }
+        check(!overlapsBookedDates(startMillis, endMillis, bookedByOthers)) {
+            "Some of those dates were just booked by another winner, please pick different dates"
+        }
 
         val reservation = Reservation(
             id = "${lotteryId}_$entrantId",
@@ -243,6 +263,81 @@ fun loadClaimableLotteries(
             )
         }
         .addOnFailureListener { onError(it) }
+}
+
+// turns a date saved in Firestore into millis
+// works with Timestamps and the older yyyy-MM-dd strings
+private fun Any?.toBookingMillis(): Long? {
+    return when (this) {
+        is Timestamp -> this.toDate().time
+        is Date -> this.time
+        is String -> {
+            try {
+                SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(this)?.time
+            } catch (e: Exception) {
+                null
+            }
+        }
+        else -> null
+    }
+}
+
+// loads the dates that are already reserved at the lottery's campsite
+// each pair is (start of the first day, end of the last day) in millis
+fun loadBookedDates(
+    lottery: Lottery,
+    onResult: (List<Pair<Long, Long>>) -> Unit,
+    onError: (Exception) -> Unit
+) {
+    withCampsiteName(lottery) { campsiteName ->
+        if (campsiteName.isBlank()) {
+            onError(IllegalStateException("Could not find the campsite for this lottery"))
+        } else {
+            FirebaseFirestore.getInstance()
+                .collection("reservations")
+                .whereEqualTo("campsiteName", campsiteName)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val booked = snapshot.documents.mapNotNull { doc ->
+                        val start = (doc.get("startDate") ?: doc.get("StartDate")).toBookingMillis()
+                        val end = (doc.get("endDate") ?: doc.get("EndDate")).toBookingMillis()
+                        if (start == null || end == null) {
+                            null
+                        } else {
+                            Pair(startOfDay(start), endOfDay(end))
+                        }
+                    }
+                    onResult(booked)
+                }
+                .addOnFailureListener { onError(it) }
+        }
+    }
+}
+
+// true if any part of start..end lands on a booked date
+fun overlapsBookedDates(start: Long, end: Long, booked: List<Pair<Long, Long>>): Boolean {
+    return booked.any { (bookedStart, bookedEnd) ->
+        start <= bookedEnd && end >= bookedStart
+    }
+}
+
+// true if at least one day in the booking window is not in the past and not booked
+fun hasAvailableDates(lottery: Lottery, booked: List<Pair<Long, Long>>): Boolean {
+    val today = startOfDay(System.currentTimeMillis())
+    val windowStart = lottery.bookingStartDate?.toDate()?.time?.let { startOfDay(it) } ?: today
+    // no end date means the booking window never closes
+    val windowEnd = lottery.bookingEndDate?.toDate()?.time?.let { endOfDay(it) } ?: return true
+
+    val c = Calendar.getInstance()
+    c.timeInMillis = maxOf(windowStart, today)
+    while (c.timeInMillis <= windowEnd) {
+        val dayStart = startOfDay(c.timeInMillis)
+        if (!overlapsBookedDates(dayStart, endOfDay(dayStart), booked)) {
+            return true
+        }
+        c.add(Calendar.DAY_OF_MONTH, 1)
+    }
+    return false
 }
 
 fun startOfDay(millis: Long): Long {

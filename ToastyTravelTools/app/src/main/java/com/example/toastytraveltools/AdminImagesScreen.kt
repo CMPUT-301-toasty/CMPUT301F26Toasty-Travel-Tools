@@ -25,7 +25,10 @@ import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.Campsite
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
-
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 /**
  * Displays campsite images that have been uploaded to the application.
  *
@@ -158,9 +161,13 @@ fun AdminImagesScreen(onBack: () -> Unit) {
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Text("Campsite: ${campsite.location}")
-                                Text(
-                                    "Image URL: ${campsite.imagesUrl}",
-                                    maxLines = 2
+                                AsyncImage(
+                                    model = campsite.imagesUrl,
+                                    contentDescription = "Image of ${campsite.name}",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(180.dp),
+                                    contentScale = ContentScale.Crop
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
