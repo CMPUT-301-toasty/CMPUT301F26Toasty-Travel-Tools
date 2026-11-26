@@ -6,6 +6,7 @@ able to cancel any active reservations but a confirmation screen will popup to c
 Lottery winners can claim their spot here. If the lottery has more than one campsite they pick
 one campsite first, then the dates, and are only shown dates that are still available.
 Winners can also decline their spot if they changed their mind or none of the dates work.
+After cancelling they are taken to the cancellation screen, and get a notification if turned on.
 
 Issues:
  - make the active and past buttons more clear on which one is active
@@ -176,7 +177,8 @@ fun ReservationScreen (
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
     onProfileClick: (String) -> Unit = {},
-    onClaimed: (Reservation) -> Unit = {}
+    onClaimed: (Reservation) -> Unit = {},
+    onCancelled: (Reservation) -> Unit = {}
 ) {
     var active_clicked by remember { mutableStateOf(true) }
 
@@ -484,6 +486,11 @@ fun ReservationScreen (
                                     if (it.id == toCancel.id) it.copy(status = "canceled") else it
                                 }
                                 selected = null
+                                // send a notification if they are turned on, then show the cancellation screen
+                                NotificationPreferences.ifEnabled(deviceId) {
+                                    ReservationNotifier.sendCancelled(context, toCancel)
+                                }
+                                onCancelled(toCancel)
                             },
                             onError = { selected = null }
                         )
