@@ -90,7 +90,7 @@ class ReservationRepository {
                         id = document.id,
                         campsiteName = document.getString("campsiteName") ?: "",
                         location = document.getString("location") ?: "",
-                        entrantId = document.getString("entrant_id")
+                        entrant_id = document.getString("entrant_id")
                             ?: document.getString("entrantId")
                             ?: "",
                         startDate = document.get("startDate")
