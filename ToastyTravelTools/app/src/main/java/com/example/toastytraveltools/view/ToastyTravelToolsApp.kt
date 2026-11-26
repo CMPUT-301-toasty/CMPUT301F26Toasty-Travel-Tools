@@ -68,6 +68,7 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
     val navController = rememberNavController()
 
     var claimedReservation by remember { mutableStateOf<Reservation?>(null) }
+    var cancelledReservation by remember { mutableStateOf<Reservation?>(null) }
 
     val campsiteRepository = remember { CampsiteRepository() }
     val lotteryRepository = remember { LotteryRepository() }
@@ -214,7 +215,7 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onSearchClick = { navController.navigate("search") },
                 onReservationClick = { navController.navigate("reservation") },
                 onProfileClick = { id -> navController.navigate("profile/$id") }
-            ) 
+            )
         }
 
         // Campsite details
@@ -263,6 +264,10 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onClaimed = { reservation ->
                     claimedReservation = reservation
                     navController.navigate("claimed_confirmation")
+                },
+                onCancelled = { reservation ->
+                    cancelledReservation = reservation
+                    navController.navigate("cancelled_confirmation")
                 }
             )
         }
@@ -276,6 +281,21 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onReservationClick = { navController.navigate("reservation") },
                 onProfileClick = { profileId -> navController.navigate("profile/$profileId") }
             )
+        }
+
+        // shown after the entrant cancels a reservation
+        composable("cancelled_confirmation") {
+            val reservation = cancelledReservation
+            if (reservation != null) {
+                CancellationScreen(reservation = reservation,
+                    onHome = {
+                        navController.navigate("home") {
+                            popUpTo("home") { inclusive = false }
+                        }
+                    })
+            } else {
+                Text("Loading...")
+            }
         }
 
         composable("claimed_confirmation") {
