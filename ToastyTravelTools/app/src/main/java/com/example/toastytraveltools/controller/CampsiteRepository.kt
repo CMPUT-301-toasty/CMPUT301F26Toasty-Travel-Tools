@@ -21,7 +21,13 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.FieldValue
 import android.util.Log
+import android.net.Uri
+import com.google.android.gms.tasks.Task
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
+import java.util.UUID
 /**
  * Repository responsible for managing campsite data in Firebase Firestore.
  *
@@ -39,6 +45,60 @@ class CampsiteRepository {
 
     private val db = Firebase.firestore
     private val campsitesRef = db.collection("campsites")
+    private val storage = FirebaseStorage.getInstance()
+
+    /** Storage folder that holds every photo for one campsite. */
+    private fun imagesFolder(campsiteId: String): StorageReference =
+        storage.reference.child("$CAMPSITE_IMAGES_FOLDER/$campsiteId")
+
+    /**
+     * Uploads photos to campsite_images/{campsiteId}/ and returns their download URLs,
+     * in the same order as [imageUris]. Completes immediately with an empty list if
+     * there are no photos.
+     */
+    private fun uploadImages(campsiteId: String, imageUris: List<Uri>): Task<List<String>> {
+        if (imageUris.isEmpty()) return Tasks.forResult(emptyList())
+        val folder = imagesFolder(campsiteId)
+        val uploads = imageUris.map { uri ->
+            val ref = folder.child("${UUID.randomUUID()}.jpg")
+            ref.putFile(uri).continueWithTask { task ->
+                if (!task.isSuccessful) throw task.exception ?: Exception("Image upload failed")
+                ref.downloadUrl
+            }.continueWith { it.result.toString() }
+        }
+        return Tasks.whenAllSuccess<String>(uploads)
+    }
+
+    /**
+     * Best-effort deletion of the given photos from Storage. Failures are logged,
+     * not reported, since the Firestore document is the source of truth.
+     */
+    private fun deleteImagesByUrl(imageUrls: List<String>) {
+        imageUrls.forEach { url ->
+            try {
+                storage.getReferenceFromUrl(url).delete()
+                    .addOnFailureListener { Log.w(TAG, "Could not delete image $url", it) }
+            } catch (e: IllegalArgumentException) {
+                Log.w(TAG, "Not a Firebase Storage URL, skipping: $url")
+            }
+        }
+    }
+
+    /**
+     * Deletes every photo stored for a campsite, including any not referenced by
+     * the document (e.g. left behind by an interrupted upload).
+     */
+    private fun deleteAllImages(campsite: Campsite) {
+        val folder = imagesFolder(campsite.id)
+        // photos outside the campsite's folder (e.g. legacy uploads) are deleted by URL
+        deleteImagesByUrl(campsite.imageUrls.filterNot { url ->
+            runCatching { storage.getReferenceFromUrl(url).path.startsWith(folder.path + "/") }
+                .getOrDefault(false)
+        })
+        folder.listAll()
+            .addOnSuccessListener { result -> result.items.forEach { it.delete() } }
+            .addOnFailureListener { Log.w(TAG, "Could not list images for ${campsite.id}", it) }
+    }
 
     private val _campsites = mutableStateListOf<Campsite>()
 
@@ -64,21 +124,41 @@ class CampsiteRepository {
     /**
      * Adds a new campsite to Firestore using an automatically generated document ID.
      *
+     * Any [imageUris] are uploaded to campsite_images/{newId}/ first and their
+     * download URLs saved in the campsite's imageUrls. Zero photos is allowed.
+     *
      * @param campsite Campsite information to save.
+     * @param imageUris Local photos to attach to the campsite.
      * @param onSuccess Callback invoked when the campsite is saved.
      * @param onFailure Callback invoked if saving fails.
      */
     fun addCampsite(
         campsite: Campsite,
+        imageUris: List<Uri> = emptyList(),
         onSuccess: () -> Unit = {},
         onFailure: (Exception) -> Unit = {}
     ) {
         val documentRef = campsitesRef.document()
-        val newCampsite = campsite.copy(id = documentRef.id)
 
-        documentRef.set(newCampsite)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { onFailure(it) }
+        uploadImages(documentRef.id, imageUris)
+            .addOnSuccessListener { uploadedUrls ->
+                val newCampsite = campsite.copy(
+                    id = documentRef.id,
+                    imageUrls = campsite.imageUrls + uploadedUrls
+                )
+                documentRef.set(newCampsite)
+                    .addOnSuccessListener { onSuccess() }
+                    .addOnFailureListener {
+                        deleteImagesByUrl(uploadedUrls)
+                        onFailure(it)
+                    }
+            }
+            .addOnFailureListener {
+                // clean up whichever uploads did succeed
+                imagesFolder(documentRef.id).listAll()
+                    .addOnSuccessListener { r -> r.items.forEach { item -> item.delete() } }
+                onFailure(it)
+            }
     }
 
     /**
@@ -87,18 +167,60 @@ class CampsiteRepository {
      * Find document through campsite.id, a new one is created
      * if there is no document with that id
      *
-     * @param campsite The updated campsite
+     * [newImageUris] are uploaded and appended to campsite.imageUrls. After the
+     * document is saved, [removedImageUrls] are deleted from Storage.
+     *
+     * @param campsite The updated campsite, imageUrls should hold the photos to keep
+     * @param newImageUris local photos to upload and attach
+     * @param removedImageUrls previously stored photos the owner removed
      * @param onSuccess called after the update works
      * @param onFailure called with the exception when the update fails
      */
     // Update campsite
     fun updateCampsite(
         campsite: Campsite,
+        newImageUris: List<Uri> = emptyList(),
+        removedImageUrls: List<String> = emptyList(),
         onSuccess: () -> Unit = {},
         onFailure: (Exception) -> Unit = {}
     ) {
-        campsitesRef.document(campsite.id).set(campsite)
-            .addOnSuccessListener { onSuccess() }
+        uploadImages(campsite.id, newImageUris)
+            .addOnSuccessListener { uploadedUrls ->
+                val updated = campsite.copy(
+                    imageUrls = (campsite.imageUrls - removedImageUrls.toSet()) + uploadedUrls
+                )
+                campsitesRef.document(campsite.id).set(updated)
+                    .addOnSuccessListener {
+                        deleteImagesByUrl(removedImageUrls)
+                        onSuccess()
+                    }
+                    .addOnFailureListener {
+                        deleteImagesByUrl(uploadedUrls)
+                        onFailure(it)
+                    }
+            }
+            .addOnFailureListener { onFailure(it) }
+    }
+
+    /**
+     * Removes a single photo from a campsite: deletes it from Storage and from
+     * the campsite's imageUrls list.
+     *
+     * @param campsiteId ID of the campsite the photo belongs to
+     * @param imageUrl download URL of the photo to remove
+     */
+    fun removeCampsiteImage(
+        campsiteId: String,
+        imageUrl: String,
+        onSuccess: () -> Unit = {},
+        onFailure: (Exception) -> Unit = {}
+    ) {
+        campsitesRef.document(campsiteId)
+            .update("imageUrls", FieldValue.arrayRemove(imageUrl))
+            .addOnSuccessListener {
+                deleteImagesByUrl(listOf(imageUrl))
+                onSuccess()
+            }
             .addOnFailureListener { onFailure(it) }
     }
 
@@ -110,6 +232,7 @@ class CampsiteRepository {
     // Simple campsite deletion
     fun deleteCampsite(campsite: Campsite) {
         campsitesRef.document(campsite.id).delete()
+            .addOnSuccessListener { deleteAllImages(campsite) }
     }
 
     /**
@@ -117,7 +240,7 @@ class CampsiteRepository {
      *
      * Delete reservation where campsiteName matches the campsite's name
      * Remove campsite ID from all the lotteries that contain that ID
-     * Delete the campsite document itself
+     * Delete the campsite document itself, then its photos in Storage
      *
      * All three steps must be completed
      * @param campsite the campsite we delete, id and name cannot be blank
@@ -265,7 +388,11 @@ class CampsiteRepository {
                                             batch.delete(campsitesRef.document(campsite.id))
 
                                             batch.commit()
-                                                .addOnSuccessListener { onSuccess() }
+                                                .addOnSuccessListener {
+                                                    // Remove the campsite's photos from Storage.
+                                                    deleteAllImages(campsite)
+                                                    onSuccess()
+                                                }
                                                 .addOnFailureListener { onFailure(it) }
 
                                         } catch (e: Exception) {
@@ -316,5 +443,12 @@ class CampsiteRepository {
 
             isLoading = false
         }
+    }
+
+    companion object {
+        private const val TAG = "CampsiteRepository"
+
+        /** Root folder in Firebase Storage for campsite photos. */
+        const val CAMPSITE_IMAGES_FOLDER = "campsite_images"
     }
 }

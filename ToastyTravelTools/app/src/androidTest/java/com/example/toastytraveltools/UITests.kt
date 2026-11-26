@@ -50,7 +50,11 @@ class UITests {
                 onNavigateToAddCampsite = {},
                 onNavigateToCreateLottery = {},
                 onNavigateToEditCampsite = {},
-                onNavigateBack = {}
+                onNavigateBack = {},
+                onOwnerScreenClick = {},
+                onBookingClick = {},
+                onLotteryClick = {},
+                onProfileClick = {}
             )
         }
 

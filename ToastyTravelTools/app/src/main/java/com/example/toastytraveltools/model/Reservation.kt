@@ -31,6 +31,7 @@ import com.google.firebase.Timestamp
  * @property endDate Ending date of the reservation.
  * @property guests Number of guests included in the reservation.
  * @property reviewScore Optional score submitted for the reservation.
+ * @property reviewMessage Optional review message submitted for the reservation.
  */
 data class Reservation (
     val id: String = "",

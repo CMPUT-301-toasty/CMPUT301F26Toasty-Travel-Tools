@@ -31,12 +31,22 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
 import android.util.Log
+import androidx.compose.foundation.Image
+import com.example.toastytraveltools.R
+import androidx.compose.foundation.background
 import com.google.firebase.firestore.FieldValue
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.toTextFieldBuffer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
@@ -44,10 +54,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.unit.sp
+import com.example.toastytraveltools.controller.MessageRepository
 import com.example.toastytraveltools.model.Campsite
 import com.example.toastytraveltools.model.Lottery
+import com.example.toastytraveltools.model.Message
 import com.example.toastytraveltools.model.Reservation
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 
 
 // this screen appears when the user clicks on the specific row
@@ -67,7 +86,9 @@ fun updateScore(campsite: Campsite){
             }
             Log.d("ReservationDebug", "found ${reservations.size} reservations for campsiteName=$campsite.Name")
             for(r in reservations){
+                Log.d("ReservationDebug", "reservation: ${r}")
                 if(r.reviewScore != null){
+                    //Log.d("ReservationDebug", "score not null, ${r.reviewScore}")
                     scoreTotal += r.reviewScore ?: 0
                     scoreCount += 1
                 }
@@ -77,11 +98,12 @@ fun updateScore(campsite: Campsite){
                 .collection("campsites")
                 .document(campsite.id)
                 .update("rating", scoreTotal.toDouble()/scoreCount.toDouble())
+            //Log.d("ReservationDebug", "scoreTotal:, ${scoreTotal}")
+            //Log.d("ReservationDebug", "scoreTotal:, ${scoreCount}")
             campsite.rating = scoreTotal.toDouble()/scoreCount.toDouble()
         }
         .addOnFailureListener {  }
 }
-
 
 @Composable
 fun CampsiteDetailsScreen(
@@ -89,23 +111,24 @@ fun CampsiteDetailsScreen(
     onBack: () -> Unit,
     onError: (Exception) -> Unit
 ) {
+    Log.d("ReviewsDebug", "Flow0")
     var campsite by remember { mutableStateOf<Campsite?>(null)}
     var lottery by remember { mutableStateOf<Lottery?>(null)}
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-    var reservations by remember { mutableStateOf(listOf<Reservation>())}
-    var campsiteReviews by remember { mutableStateOf(listOf<Reservation>())}
-
+    var reservations by remember { mutableStateOf(listOf<Reservation>()) }
+    var campsiteRating by remember { mutableDoubleStateOf(0.0) }
 
     LaunchedEffect(campsiteId) {
+        Log.d("ReviewsDebug", "Flow1")
         FirebaseFirestore.getInstance()
             .collection("campsites")
             .document(campsiteId)
-            .get()
-            .addOnSuccessListener { snapshot ->
+            .addSnapshotListener { snapshot, exception ->
+                if ( snapshot == null || exception != null) return@addSnapshotListener
                 campsite = snapshot.toObject(Campsite::class.java)
+                campsiteRating = snapshot.getDouble("rating") ?: 0.0
             }
-            .addOnFailureListener { onError(it) }
         Log.d("ReservationDebug", "this device's id: $deviceId")
         loadReservations( //To identify if a user has been to a campsite before, so they can place a review.
             entrantId = deviceId,
@@ -114,6 +137,7 @@ fun CampsiteDetailsScreen(
         )
     }
 
+    Log.d("ReviewsDebug", "Flow2")
     val snapshot_campsite = campsite
     if(snapshot_campsite == null) {
         Text(
@@ -121,21 +145,12 @@ fun CampsiteDetailsScreen(
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(16.dp)
         )
+        Log.d("ReviewsDebug", "Flow3")
         return
 
 
     }
-    LaunchedEffect(snapshot_campsite.name) {
-        FirebaseFirestore.getInstance()
-            .collection("reservations")
-            .whereEqualTo("campsiteName", snapshot_campsite.name)
-            .get()
-            .addOnSuccessListener { snap ->
-                campsiteReviews = snap.documents
-                    .mapNotNull { it.toObject(Reservation::class.java)?.copy(id = it.id) }
-                    .filter { it.reviewScore != null }
-            }
-    }
+    updateScore(snapshot_campsite) //ensure accurate rating before opening campsite
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -159,6 +174,38 @@ fun CampsiteDetailsScreen(
             )
         }
 
+        CampsiteImageCarousel(
+            imageUrls = snapshot_campsite.imageUrls,
+            emptyContent = {
+                if (snapshot_campsite.name.trim().equals("bruh please", ignoreCase = true)) {
+                    Image(
+                        painter = painterResource(id = R.drawable.bruh_please),
+                        contentDescription = "Campsite Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No photos yet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        )
+
         Text(
             text = snapshot_campsite.location,
             style = MaterialTheme.typography.titleMedium,
@@ -179,7 +226,8 @@ fun CampsiteDetailsScreen(
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = "${snapshot_campsite.rating}",
+                        //text = "${snapshot_campsite.rating}",
+                        text = "$campsiteRating",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -210,12 +258,15 @@ fun CampsiteDetailsScreen(
 
 
         //Present option to review only if campsite is in past reservations
+        val messageRepository = MessageRepository()
+        var reviewMessage = Message()
         val now = Timestamp.now()
+        var hasReview by remember { mutableStateOf<Boolean>(false)} //If user has review, display their review in the review section instead
         var reviewing by remember { mutableStateOf<Boolean>(false)}
-        for (r in reservations){
-            if (r.campsiteName == snapshot_campsite.name && r.endDate < now){
-                if(reviewing == false) {
-                    if (r.reviewScore == null) {
+        for (r in reservations) {
+            if (r.campsiteName == snapshot_campsite.name && r.endDate < now) {
+                if (r.reviewScore == null) {
+                    if (reviewing == false) {
                         OutlinedButton(
                             onClick = { reviewing = true },
                             modifier = Modifier.fillMaxWidth()
@@ -223,62 +274,69 @@ fun CampsiteDetailsScreen(
                         {
                             Text(text = "You have visited this campsite before, how would you rate your stay?")
                         }
-                    } else {
-                        OutlinedButton(
-                            onClick = { reviewing = true },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        {
-                            Text(text = "You gave this campsite rating of ${r.reviewScore}. Would you like to edit your review?")
+                    }
+                    else{
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    //make review score selection more intuitive later (use stars)
+                                    var sliderPosition by remember { mutableStateOf<Float>(0F) }
+                                    Slider(
+                                        value = sliderPosition,
+                                        onValueChange = { sliderPosition = it },
+                                        steps = 4,
+                                        valueRange = 0f..5f
+                                    )
+                                    val submitReview = rememberTextFieldState() //https://developer.android.com/develop/ui/compose/text/user-input#manage-tf-state
+                                    TextField(
+                                        state = submitReview,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        placeholder = { Text("Leave a review (Optional)") }
+                                    )
+                                    OutlinedButton(
+                                        onClick =
+                                            {
+                                                FirebaseFirestore.getInstance()
+                                                    .collection("reservations")
+                                                    .document(r.id)
+                                                    .update(
+                                                        "reviewScore",
+                                                        sliderPosition.toInt()
+                                                    ) //this change's the user's score
+                                                if(submitReview.toTextFieldBuffer().toString().isNotEmpty()){
+                                                    reviewMessage.messageType = "review"
+                                                    reviewMessage.sendTime = Timestamp.now()
+                                                    reviewMessage.messageOwner = deviceId
+                                                    reviewMessage.text = submitReview.toTextFieldBuffer().toString()
+                                                    FirebaseFirestore.getInstance()
+                                                        .collection("reservations")
+                                                        .document(r.id)
+                                                        .update(
+                                                            "reviewMessage",
+                                                            messageRepository.addMessage(reviewMessage)
+                                                        ) //this adds the document id of the user's review to their reservation listing.
+                                                }
+                                                r.reviewScore = sliderPosition.toInt() //just for visual
+                                                updateScore(snapshot_campsite) //this updates the aggregate score on the campsite
+                                                reviewing = false
+                                                hasReview = true
+                                            },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    {
+                                        Text(text = "You give this campsite a rating of: ${sliderPosition.toInt()}")
+                                    }
+                                }
+                            }
                         }
                     }
-                }
-                if(reviewing == true){
-                    //make review score selection more intuitive later (use stars)
-                    var sliderPosition by remember { mutableStateOf(r.reviewScore?.toFloat() ?:0f) }
-                    var reviewText by remember { mutableStateOf(r.reviewMessage ?: "")}
-                    Slider(
-                        value = sliderPosition,
-                        onValueChange = { sliderPosition = it },
-                        steps = 4,
-                        valueRange = 0f..5f
-                    )
-
-                    OutlinedTextField(
-                        value = reviewText,
-                        onValueChange = { reviewText = it },
-                        label = { Text("Write a review (optional)")},
-                        minLines = 3,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedButton(
-                        onClick =
-                            {
-                                reviewing = false
-                                val score = sliderPosition.toInt()
-                                val message = reviewText.trim()
-
-                                FirebaseFirestore.getInstance()
-                                    .collection("reservations")
-                                    .document(r.id)
-                                    .update(
-                                        mapOf("reviewScore" to score,
-                                            "reviewMessage" to message
-                                        )
-                                    )
-                                    .addOnSuccessListener {
-                                        updateScore(snapshot_campsite)
-                                        campsiteReviews = campsiteReviews.filter { it.id != r.id} +
-                                                r.copy(reviewScore = score, reviewMessage = message)
-                                    }
-                                r.reviewScore = score //just for visual
-                                r.reviewMessage = message
-                            },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    {
-                        Text(text = "Submit review (${sliderPosition.toInt()}/5)")
-                    }
+                } else {
+                    hasReview = true
                 }
             }
         }
@@ -370,40 +428,360 @@ fun CampsiteDetailsScreen(
                 )
             }
         }
-
-        // Reviews from everyone who stayed here
         Text(
             text = "Reviews",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
-
-        if (campsiteReviews.isEmpty()) {
-            Text("No reviews yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-        campsiteReviews.forEach { review ->
+        //Your review is shown above other reviews
+        var reviewScore by remember { mutableIntStateOf(0) }
+        var reviewText by remember { mutableStateOf("N/A")}
+        var reviewMessageId by remember { mutableStateOf("N/A")}
+        var reservationId by remember { mutableStateOf("")}
+        var pleaseDoOnce by remember { mutableStateOf<Boolean>(false)}
+        if(hasReview) {
+            LaunchedEffect(Unit) {
+                loadReservations( //refresh reviews just in case
+                    entrantId = deviceId,
+                    onResult = { reservations = it },
+                    onError = { reservations = listOf() }
+                )
+                for (r in reservations) {
+                    if (r.campsiteName == snapshot_campsite.name){
+                        reviewScore = r.reviewScore ?: 0
+                        reservationId = r.id
+                        val savedReview = r.reviewMessage ?: ""
+                        if (isMessageId(savedReview)) {
+                            FirebaseFirestore.getInstance() //Review poster profile lookup
+                                .collection("messages")
+                                .document(savedReview)
+                                .get()
+                                .addOnSuccessListener { message ->
+                                    if (message.exists()) {
+                                        reviewMessageId = savedReview
+                                        reviewText = message.getString("text") ?: "None"
+                                    } else
+                                    // older reviews saved the text itself instead of a message id
+                                        reviewText = savedReview
+                                }
+                        } else {
+                            reviewText = savedReview.ifBlank { "N/A" }
+                        }
+                    }
+                }
+            }
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp)) {
+                if(reviewing == false) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = review.entrantName.ifBlank { "Anonymous" },
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text("${review.reviewScore}/5")
+                        Column {
+                            Text(
+                                text = "Your Review",
+                                fontSize = 17.sp,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 18.dp, vertical = 5.dp)
+                            )
+                            Text(
+                                text = reviewScore.toString(),
+                                fontSize = 14.sp,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 18.dp, vertical = 5.dp)
+                            )
+                            if (reviewText != "N/A") {
+                                Text(
+                                    text = reviewText,
+                                    fontSize = 14.sp,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 18.dp, vertical = 5.dp)
+                                )
+                            }
+                        }
                     }
-                    if (!review.reviewMessage.isNullOrBlank()) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = review.reviewMessage!!,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.BottomEnd
+                        ) {
+                            Button(
+                                onClick = { reviewing = true },
+                                modifier = Modifier
+                                    .height(30.dp)
+                            ) {
+                                Text(
+                                    text = "Edit",
+                                    fontSize = 7.sp,
+                                )
+                            }
+                        }
                     }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            var sliderPosition by remember { mutableStateOf<Float>(reviewScore.toFloat()) }
+                            Slider(
+                                value = sliderPosition,
+                                onValueChange = { sliderPosition = it },
+                                steps = 4,
+                                valueRange = 0f..5f
+                            )
+                            val submitReview = rememberTextFieldState()
+                            if (reviewText != "N/A" && pleaseDoOnce == false) {
+                                submitReview.edit{ append(reviewText) }
+                                pleaseDoOnce = true
+                            }
+                            TextField(
+                                state = submitReview,
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Leave a review (Optional)") }
+                            )
+                            OutlinedButton(
+                                onClick =
+                                    {
+                                        FirebaseFirestore.getInstance()
+                                            .collection("reservations")
+                                            .document(reservationId)
+                                            .update(
+                                                "reviewScore",
+                                                sliderPosition.toInt()
+                                            ) //this change's the user's score
+                                        if(submitReview.toTextFieldBuffer().toString().isNotEmpty()) { //Either add review, or edit the attached review
+                                            if (reviewMessageId == "N/A") {
+                                                reviewMessage.messageType = "review"
+                                                reviewMessage.sendTime = Timestamp.now()
+                                                reviewMessage.messageOwner = deviceId
+                                                reviewMessage.text =
+                                                    submitReview.toTextFieldBuffer().toString()
+                                                val newMessageId = messageRepository.addMessage(reviewMessage)
+                                                FirebaseFirestore.getInstance()
+                                                    .collection("reservations")
+                                                    .document(reservationId)
+                                                    .update(
+                                                        "reviewMessage",
+                                                        newMessageId
+                                                    ) //this adds the document id of the user's review to their reservation listing.
+                                                reviewMessageId = newMessageId // so editing again updates this review
+                                            } else {
+                                                FirebaseFirestore.getInstance()
+                                                    .collection("messages")
+                                                    .document(reviewMessageId)
+                                                    .update(
+                                                        "text",
+                                                        submitReview.toTextFieldBuffer().toString()
+                                                    ) //this change's the user's score
+                                            }
+                                            reviewText = submitReview.toTextFieldBuffer().toString()
+                                        } else { //Delete review if it is presnet (set its text to N/A).
+                                            if (reviewMessageId != "N/A") {
+                                                FirebaseFirestore.getInstance()
+                                                    .collection("messages")
+                                                    .document(reviewMessageId)
+                                                    .update(
+                                                        "text",
+                                                        "N/A"
+                                                    )
+                                            }
+                                            reviewText = "N/A"
+                                        }
+                                        reviewScore = sliderPosition.toInt() //just for visual
+                                        updateScore(snapshot_campsite) //this updates the aggregate score on the campsite
+                                        reviewing = false
+                                        pleaseDoOnce = false
+                                    },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            {
+                                Text(text = "You give this campsite a rating of: ${sliderPosition.toInt()}")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        displayReviews(snapshot_campsite,deviceId)
+    }
+}
+
+fun loadCampsiteReviews(
+    entrantId: String,
+    campsite: Campsite,
+    onResult: (List<Reservation>) -> Unit,
+    onError: (Exception) -> Unit
+) {
+    Log.d("ReviewsDebug", "Searching for reservations...")
+    Log.d("ReviewsDebug", "${campsite.name}")
+    var reservations: List<Reservation>
+    FirebaseFirestore.getInstance()
+        .collection("reservations")
+        .whereEqualTo("campsiteName", campsite.name)
+        .get()
+        .addOnSuccessListener { snapshot ->
+            reservations = snapshot.documents.mapNotNull { doc ->
+                // the class has an id field, so fill it in with the document's ID
+                doc.toObject(Reservation::class.java)?.copy(id = doc.id)
+            }
+            Log.d("ReviewsDebug", "found ${reservations.size} reservations for entrant_id=$entrantId")
+            onResult(reservations)
+        }
+        .addOnFailureListener { onError(it) }
+}
+
+@Composable
+fun displayReviews (
+    campsite: Campsite,
+    entrantId: String
+){
+    //var reservations: List<Reservation> = listOf()
+    var reservations by remember { mutableStateOf(listOf<Reservation>()) }
+    LaunchedEffect(campsite) {
+        Log.d("ReviewsDebug", "this device's id: $entrantId")
+        loadCampsiteReviews(
+            entrantId = entrantId,
+            campsite = campsite,
+            onResult = { reservations = it },
+            onError = { reservations = listOf() }
+        )
+        Log.d("ReviewsDebug", "${reservations}")
+        Log.d("ReviewsDebug", "Lookup Complete")
+    }
+    // reviews from everyone else, a score on its own still counts as a review
+    val otherReviews = reservations.filter {
+        it.entrantId != entrantId && (it.reviewScore != null || !it.reviewMessage.isNullOrBlank())
+    }
+    if(otherReviews.isEmpty()) {
+        Text(
+            text = "No reviews yet",
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.padding(16.dp)
+        )
+        Log.d("ReviewsDebug", "Lookup Aborted")
+        return
+    }
+    Log.d("ReviewsDebug", "${reservations}")
+    for (r in otherReviews) {
+        Log.d("ReviewsDebug", "reservation: ${r}")
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    reviewRow(r.reviewMessage, r.reviewScore ?: 0, r.entrantId, r.entrantName)
                 }
             }
         }
     }
 }
+
+
+
+
+
+@Composable
+fun reviewRow(reviewID: String?, rScore: Int, rOwner: String, rName: String = "") {
+    //Place reviewer's pfp to the left of review
+    //var reviewerName: String = "N/A"
+    var reviewerName by remember { mutableStateOf("N/A") }
+    var reviewText by remember { mutableStateOf("N/A") }
+    LaunchedEffect(rOwner) {
+        Log.d("ReviewsDebug", "review owner: $rOwner")
+        if (rOwner.isBlank()) {
+            reviewerName = rName.ifBlank { "Anonymous" }
+            return@LaunchedEffect
+        }
+        FirebaseFirestore.getInstance() //Review poster profile lookup
+            .collection("entrants")
+            .document(rOwner)
+            .get()
+            .addOnSuccessListener { profile ->
+                if (profile.exists()) {
+                    reviewerName = profile.getString("name") ?: "None"
+                } else
+                // profile is gone, use the name saved on the reservation
+                    reviewerName = rName.ifBlank { "Anonymous" }
+            }
+    }
+
+    LaunchedEffect(reviewID) {
+        Log.d("ReviewsDebug", "review id: $reviewID")
+        val saved = reviewID ?: ""
+        if (!isMessageId(saved)) {
+            // no written review, or an older review that saved the text itself
+            reviewText = saved
+            return@LaunchedEffect
+        }
+        FirebaseFirestore.getInstance() //Review poster profile lookup
+            .collection("messages")
+            .document(saved)
+            .get()
+            .addOnSuccessListener { message ->
+                if (message.exists()) {
+                    reviewText = message.getString("text") ?: "None"
+                } else
+                // older reviews saved the text itself instead of a message id
+                    reviewText = saved
+            }
+    }
+
+    if (reviewerName == "N/A"){
+        return
+    }
+
+    Text(
+        text = reviewerName,
+        fontSize = 14.sp,
+        style = MaterialTheme.typography.bodyLarge,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 5.dp)
+    )
+
+    Text(
+        text = "$rScore/5", //replace this with stars if we use stars
+        fontSize = 14.sp,
+        style = MaterialTheme.typography.bodyLarge,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 5.dp)
+    )
+
+    // score-only reviews and deleted review text have nothing to show here
+    if (reviewText.isNotBlank() && reviewText != "N/A") {
+        Text(
+            text = reviewText,
+            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 5.dp)
+        )
+    }
+}
+
+// true if the saved review looks like a "messages" document id
+// older reviews saved the text itself, and Firestore crashes on ids with a "/" in them
+fun isMessageId(saved: String): Boolean = saved.isNotBlank() && !saved.contains("/")
