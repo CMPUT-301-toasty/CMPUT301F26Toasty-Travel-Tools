@@ -170,6 +170,11 @@ fun claimLotterySpot(
             "You declined this reservation, so you can no longer reserve for this lottery"
         }
 
+        // a cancelled reservation still uses up the win
+        check(entrantId !in lottery.cancelledWinners) {
+            "Your reservation for this lottery was cancelled, so you can no longer reserve for it"
+        }
+
         // dates have to be inside the booking window (compared by day)
         val bookingStart = lottery.bookingStartDate?.toDate()?.time?.let { startOfDay(it) }
         val bookingEnd = lottery.bookingEndDate?.toDate()?.time?.let { endOfDay(it) }
@@ -273,7 +278,8 @@ fun loadClaimableLotteries(
                 snapshot.toObjects(Lottery::class.java).filter { lottery ->
                     lottery.spotsRemaining > 0 &&
                             lottery.reservations.none { it.entrantId == entrantId } &&
-                            entrantId !in lottery.declinedWinners
+                            entrantId !in lottery.declinedWinners &&
+                            entrantId !in lottery.cancelledWinners
                 }
             )
         }
@@ -300,6 +306,7 @@ fun declineLotterySpot(
             "You have already reserved your spot, cancel it from your reservations instead"
         }
         check(entrantId !in lottery.declinedWinners) { "You have already declined this reservation" }
+        check(entrantId !in lottery.cancelledWinners) { "Your reservation for this lottery was already cancelled" }
 
         tx.update(
             lotteryRef,

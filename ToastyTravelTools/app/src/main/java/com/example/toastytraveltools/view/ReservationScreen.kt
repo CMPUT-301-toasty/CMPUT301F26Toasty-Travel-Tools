@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import com.example.toastytraveltools.model.Reservation
 import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -86,15 +87,40 @@ fun loadReservations(
         .addOnFailureListener { onError(it) }
 }
 
+// deletes the reservation, and if it came from a lottery also removes it from that
+// lottery's reservations list. The winner is added to cancelledWinners so the win is used up
 fun cancelReservation(
     reservationId: String,
     onDone: () -> Unit,
     onError: (Exception) -> Unit
 ) {
-    FirebaseFirestore.getInstance()
-        .collection("reservations")
-        .document(reservationId)
-        .delete()
+    val db = FirebaseFirestore.getInstance()
+    val reservationRef = db.collection("reservations").document(reservationId)
+
+    db.runTransaction { tx ->
+        // reads first, writes after
+        val reservationDoc = tx.get(reservationRef)
+        val lotteryId = reservationDoc.getString("lotteryId") ?: ""
+        val entrantId = reservationDoc.getString("entrantId")
+            ?: reservationDoc.getString("entrant_id")
+            ?: ""
+
+        val lotteryRef = if (lotteryId.isNotBlank()) db.collection("lotteries").document(lotteryId) else null
+        val lottery = lotteryRef?.let { tx.get(it).toObject(Lottery::class.java) }
+
+        if (lotteryRef != null && lottery != null) {
+            val updates = mutableMapOf<String, Any>(
+                "reservations" to lottery.reservations.filter { it.id != reservationId }
+            )
+            if (entrantId.isNotBlank()) {
+                updates["cancelledWinners"] = FieldValue.arrayUnion(entrantId)
+            }
+            tx.update(lotteryRef, updates)
+        }
+
+        tx.delete(reservationRef)
+        null
+    }
         .addOnSuccessListener { onDone() }
         .addOnFailureListener { onError(it) }
 }
