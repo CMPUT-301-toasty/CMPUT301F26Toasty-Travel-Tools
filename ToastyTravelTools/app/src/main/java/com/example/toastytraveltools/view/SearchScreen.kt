@@ -14,7 +14,11 @@ package com.example.toastytraveltools.view
 import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,7 +69,13 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
     val desc = getString("Description") ?: getString("description") ?: ""
     val loc = getString("Location") ?: getString("location") ?: ""
     val limit = getLong("OccupancyLimit") ?: getLong("occupancyLimit") ?: 0L
-    val imagesUrl = getString("ImagesUrl") ?: getString("imagesUrl") ?: ""
+    // current format: "imageUrls" list of Storage download URLs
+    // legacy format: single "ImagesUrl"/"imagesUrl" string, kept only if it's a real URL
+    val imageUrls = ((get("imageUrls") as? List<*>)?.mapNotNull { it as? String } ?: emptyList())
+        .ifEmpty {
+            listOfNotNull(getString("ImagesUrl") ?: getString("imagesUrl"))
+        }
+        .filter { it.startsWith("http://") || it.startsWith("https://") }
     val rating = (get("Rating") as? Number)?.toDouble()
         ?: (get("rating") as? Number)?.toDouble()
         ?: getString("Rating")?.toDoubleOrNull()
@@ -83,7 +93,7 @@ fun DocumentSnapshot.toCampsiteSafely(): Campsite {
         description = desc,
         location = loc,
         occupancyLimit = limit.toInt(),
-        imagesUrl = imagesUrl,
+        imageUrls = imageUrls,
         rating = rating,
         tags = tags,
         qrCodeUrl = qrCodeUrl,
@@ -231,40 +241,69 @@ fun CampsiteRow(
     campsite: Campsite,
     onClick: ()-> Unit
 ) {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {
-                onClick() }
-            .padding(horizontal = 20.dp, vertical = 16.dp)
+            .padding(vertical = 6.dp)
+            .clickable { onClick() }
     ) {
-        Text(
-            text = campsite.name,
-            fontSize = 18.sp,
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box {
+                CampsiteThumbnail(imageUrl = campsite.imageUrls.firstOrNull())
+                if (campsite.imageUrls.size > 1) {
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(6.dp),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                    ) {
+                        Text(
+                            text = "+${campsite.imageUrls.size - 1}",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
+                    }
+                }
+            }
 
-        Text(
-            text = campsite.location,
-            fontSize = 14.sp,
-        )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = campsite.name,
+                    fontSize = 18.sp,
+                )
 
-        if (campsite.tags.isNotEmpty()) {
-            Text(
-                text = "Tags: ${campsite.tags.joinToString(", ")}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.secondary
-            )
+                Text(
+                    text = campsite.location,
+                    fontSize = 14.sp,
+                )
+
+                if (campsite.tags.isNotEmpty()) {
+                    Text(
+                        text = "Tags: ${campsite.tags.joinToString(", ")}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                }
+
+                Text(
+                    text = "Guests Limit: ${campsite.occupancyLimit}",
+                    fontSize = 14.sp,
+                )
+
+                Text(
+                    text = "Rating: ${campsite.rating}",
+                    fontSize = 14.sp,
+                )
+            }
         }
-
-        Text(
-            text = "Guests Limit: ${campsite.occupancyLimit}",
-            fontSize = 14.sp,
-        )
-
-        Text(
-            text = "Rating: ${campsite.rating}",
-            fontSize = 14.sp,
-        )
     }
 }
 

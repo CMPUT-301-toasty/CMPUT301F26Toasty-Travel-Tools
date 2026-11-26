@@ -20,24 +20,39 @@ class ModelAndValidationTests {
     fun testCampsiteModel_defaultValues() {
         val campsite = Campsite()
         assertEquals("", campsite.id)
-        assertEquals("", campsite.Name)
-        assertEquals(0, campsite.OccupancyLimit)
-        assertEquals(0.0, campsite.Rating, 0.0)
-        assertTrue(campsite.Tags.isEmpty())
+        assertEquals("", campsite.name)
+        assertEquals(0, campsite.occupancyLimit)
+        assertEquals(0.0, campsite.rating, 0.0)
+        assertTrue(campsite.tags.isEmpty())
+        assertTrue(campsite.imageUrls.isEmpty())
+    }
+
+    @Test
+    fun testCampsiteModel_multipleImageUrls() {
+        val urls = listOf(
+            "https://firebasestorage.googleapis.com/v0/b/toastytraveltools.firebasestorage.app/o/campsite_images%2Fc1%2Fa.jpg",
+            "https://firebasestorage.googleapis.com/v0/b/toastytraveltools.firebasestorage.app/o/campsite_images%2Fc1%2Fb.jpg"
+        )
+        val campsite = Campsite(id = "c1", imageUrls = urls)
+        assertEquals(2, campsite.imageUrls.size)
+
+        // removing one photo keeps the others in order
+        val updated = campsite.copy(imageUrls = campsite.imageUrls - urls[0])
+        assertEquals(listOf(urls[1]), updated.imageUrls)
     }
 
     @Test
     fun testCampsiteModel_assignedValues() {
         val campsite = Campsite(
             id = "c1",
-            Name = "Pine Creek",
-            OccupancyLimit = 4,
-            Tags = listOf("wifi", "water")
+            name = "Pine Creek",
+            occupancyLimit = 4,
+            tags = listOf("wifi", "water")
         )
         assertEquals("c1", campsite.id)
-        assertEquals("Pine Creek", campsite.Name)
-        assertEquals(4, campsite.OccupancyLimit)
-        assertEquals(2, campsite.Tags.size)
+        assertEquals("Pine Creek", campsite.name)
+        assertEquals(4, campsite.occupancyLimit)
+        assertEquals(2, campsite.tags.size)
     }
 
     @Test

@@ -9,7 +9,8 @@
  * @property description Description of the campsite.
  * @property location Physical location of the campsite.
  * @property occupancyLimit Maximum number of guests allowed.
- * @property imagesUrl URL of the campsite image.
+ * @property imageUrls Firebase Storage download URLs of the campsite's photos
+ *   (stored under campsite_images/{id}/). May be empty.
  * @property rating Rating assigned to the campsite.
  * @property tags List of descriptive campsite tags.
  * @property qrCodeUrl URL of the campsite QR code.
@@ -27,7 +28,7 @@ import com.google.firebase.firestore.DocumentId
  * @property Description text detailing the campsite
  * @property Location where the campsite is
  * @property OccupancyLimit max number of people in a campsite
- * @property ImagesUrl URL of the campsite image(s)
+ * @property imageUrls download URLs of the campsite's photos in Firebase Storage, can be empty
  * @property Rating campsite rating on a scale
  * @property Tags labels for each campsite
  * @property QrCodeUrl URL of the campsite's QR code image
@@ -40,7 +41,7 @@ data class Campsite (
     val description : String = "",
     val location : String = "",
     val occupancyLimit : Int = 0,
-    val imagesUrl: String = "",
+    val imageUrls: List<String> = emptyList(),
     var rating: Double = 0.0,
     val tags: List<String> = emptyList(),
     val qrCodeUrl: String = "",

@@ -165,6 +165,38 @@ fun CampsiteDetailsScreen(
             )
         }
 
+        CampsiteImageCarousel(
+            imageUrls = snapshot_campsite.imageUrls,
+            emptyContent = {
+                if (snapshot_campsite.name.trim().equals("bruh please", ignoreCase = true)) {
+                    Image(
+                        painter = painterResource(id = R.drawable.bruh_please),
+                        contentDescription = "Campsite Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No photos yet",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        )
+
         Text(
             text = snapshot_campsite.location,
             style = MaterialTheme.typography.titleMedium,

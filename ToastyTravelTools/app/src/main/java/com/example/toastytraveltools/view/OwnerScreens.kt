@@ -24,6 +24,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
+import android.net.Uri
 import androidx.compose.ui.graphics.RectangleShape
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.controller.LotteryRepository
@@ -173,7 +174,7 @@ fun OwnerScreenAddCampsite(
     var location by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var occupancy by remember { mutableStateOf("") }
-    var imageUrl by remember { mutableStateOf("") }
+    val pickedImages = remember { mutableStateListOf<Uri>() }
     var tags by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
@@ -231,11 +232,13 @@ fun OwnerScreenAddCampsite(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedTextField(
-                value = imageUrl,
-                onValueChange = { imageUrl = it },
-                label = { Text("Image URL (Optional)") },
-                modifier = Modifier.fillMaxWidth()
+            CampsiteImagePicker(
+                existingUrls = emptyList(),
+                newImages = pickedImages,
+                onAddImages = { uris -> pickedImages.addAll(uris.filterNot { it in pickedImages }) },
+                onRemoveExisting = {},
+                onRemoveNew = { pickedImages.remove(it) },
+                enabled = !isSaving
             )
 
             OutlinedTextField(
@@ -273,7 +276,6 @@ fun OwnerScreenAddCampsite(
                         location = location,
                         description = description,
                         occupancyLimit = occupancyInt,
-                        imagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
                         tags = tagList,
                         qrCodeUrl = generatedQrUrl,
                         ownerId = deviceId
@@ -281,6 +283,7 @@ fun OwnerScreenAddCampsite(
 
                     repository.addCampsite(
                         campsite = newCampsite,
+                        imageUris = pickedImages.toList(),
                         onSuccess = {
                             isSaving = false
                             onNavigateBack()
@@ -294,7 +297,13 @@ fun OwnerScreenAddCampsite(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isSaving
             ) {
-                Text(if (isSaving) "Saving..." else "Save Campsite")
+                Text(
+                    when {
+                        !isSaving -> "Save Campsite"
+                        pickedImages.isNotEmpty() -> "Uploading photos..."
+                        else -> "Saving..."
+                    }
+                )
             }
         }
     }
@@ -508,7 +517,10 @@ fun OwnerScreenEditCampsite(
     var location by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var occupancy by remember { mutableStateOf("") }
-    var imageUrl by remember { mutableStateOf("") }
+    // photos already in Storage that the owner is keeping / has removed, plus new picks
+    val keptImages = remember { mutableStateListOf<String>() }
+    val removedImages = remember { mutableStateListOf<String>() }
+    val newImages = remember { mutableStateListOf<Uri>() }
     var tags by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
@@ -521,7 +533,10 @@ fun OwnerScreenEditCampsite(
             location = site.location
             description = site.description
             occupancy = site.occupancyLimit.toString()
-            imageUrl = site.imagesUrl
+            keptImages.clear()
+            keptImages.addAll(site.imageUrls)
+            removedImages.clear()
+            newImages.clear()
             tags = site.tags.joinToString(", ")
             errorMessage = ""
         }
@@ -612,11 +627,16 @@ fun OwnerScreenEditCampsite(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                OutlinedTextField(
-                    value = imageUrl,
-                    onValueChange = { imageUrl = it },
-                    label = { Text("Image URL (Optional)") },
-                    modifier = Modifier.fillMaxWidth()
+                CampsiteImagePicker(
+                    existingUrls = keptImages,
+                    newImages = newImages,
+                    onAddImages = { uris -> newImages.addAll(uris.filterNot { it in newImages }) },
+                    onRemoveExisting = { url ->
+                        keptImages.remove(url)
+                        removedImages.add(url)
+                    },
+                    onRemoveNew = { newImages.remove(it) },
+                    enabled = !isSaving
                 )
 
                 OutlinedTextField(
@@ -653,12 +673,14 @@ fun OwnerScreenEditCampsite(
                             location = location,
                             description = description,
                             occupancyLimit = occupancyInt,
-                            imagesUrl = if (imageUrl.isBlank()) "default_image_url" else imageUrl,
+                            imageUrls = keptImages.toList(),
                             tags = tagList
                         )
 
                         repository.updateCampsite(
                             campsite = updatedCampsite,
+                            newImageUris = newImages.toList(),
+                            removedImageUrls = removedImages.toList(),
                             onSuccess = { onNavigateBack() },
                             onFailure = { e -> 
                                 isSaving = false
@@ -669,7 +691,13 @@ fun OwnerScreenEditCampsite(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isSaving
                 ) {
-                    Text(if (isSaving) "Saving..." else "Save Changes")
+                    Text(
+                        when {
+                            !isSaving -> "Save Changes"
+                            newImages.isNotEmpty() -> "Uploading photos..."
+                            else -> "Saving..."
+                        }
+                    )
                 }
             }
         }

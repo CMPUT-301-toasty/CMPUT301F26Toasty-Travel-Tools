@@ -8,10 +8,12 @@
  * Uses Jetpack Compose for the interface and Firebase Firestore
  * and Storage for image management.
  *
+ * Campsite photos live in Firebase Storage under campsite_images/{campsiteId}/
+ * and are referenced from the campsite document's imageUrls list. Each photo
+ * is listed individually so an admin can remove one without touching the others.
+ *
  * Outstanding issues:
  * Profile image management is not currently implemented.
- * Firebase Storage deletion requires Storage access to be enabled
- * in the Firebase project.
  */
 package com.example.toastytraveltools.view
 import androidx.compose.foundation.layout.*
@@ -22,17 +24,21 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.Campsite
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+/** One stored photo and the campsite it belongs to. */
+private data class CampsitePhoto(val campsite: Campsite, val url: String)
+
 /**
  * Displays campsite images that have been uploaded to the application.
  *
  * Administrators can select an image for removal and confirm the action.
- * The associated Firestore image reference is cleared after deletion.
+ * The image is removed from the campsite's imageUrls and deleted from Storage.
  *
  * @param onBack Callback used to return to the Admin Dashboard.
  */
@@ -42,28 +48,25 @@ fun AdminImagesScreen(onBack: () -> Unit) {
     val db = remember { FirebaseFirestore.getInstance() }
     val storage = remember { FirebaseStorage.getInstance() }
 
-    val campsites = remember { mutableStateListOf<Campsite>() }
-    var imageToRemove by remember { mutableStateOf<Campsite?>(null) }
+    val photos = remember { mutableStateListOf<CampsitePhoto>() }
+    var photoToRemove by remember { mutableStateOf<CampsitePhoto?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var isRemoving by remember { mutableStateOf(false) }
 
     /**
-     * Loads campsite records that have an image URL.
+     * Loads every photo of every campsite.
      */
     fun loadImages() {
         isLoading = true
         db.collection("campsites")
             .get()
             .addOnSuccessListener { snapshot ->
-                campsites.clear()
+                photos.clear()
                 snapshot.documents.forEach { document ->
                     val campsite = document.toCampsiteSafely()
-                    if (campsite != null) {
-                        campsite.id = document.id
-                        if (campsite.imagesUrl.isNotBlank()) {
-                            campsites.add(campsite)
-                        }
+                    campsite.imageUrls.forEach { url ->
+                        photos.add(CampsitePhoto(campsite, url))
                     }
                 }
                 isLoading = false
@@ -79,40 +82,42 @@ fun AdminImagesScreen(onBack: () -> Unit) {
     }
 
     /**
-     * Deletes the Storage image and clears its Firestore URL.
+     * Removes the photo's reference from its campsite, then deletes the file from Storage.
      *
-     * @param campsite Campsite whose image should be removed.
+     * @param photo Photo that should be removed.
      */
-    fun removeImage(campsite: Campsite) {
+    fun removeImage(photo: CampsitePhoto) {
         isRemoving = true
         errorMessage = null
 
-        try {
-            storage.getReferenceFromUrl(campsite.imagesUrl)
-                .delete()
-                .addOnSuccessListener {
-                    db.collection("campsites")
-                        .document(campsite.id)
-                        .update("imagesUrl", "")
-                        .addOnSuccessListener {
-                            campsites.removeAll { it.id == campsite.id }
-                            imageToRemove = null
-                            isRemoving = false
-                        }
+        val updates = mutableMapOf<String, Any>(
+            "imageUrls" to FieldValue.arrayRemove(photo.url),
+            // clear the old single-image fields too, in case this photo came from one
+            "imagesUrl" to FieldValue.delete(),
+            "ImagesUrl" to FieldValue.delete()
+        )
+
+        db.collection("campsites")
+            .document(photo.campsite.id)
+            .update(updates)
+            .addOnSuccessListener {
+                photos.remove(photo)
+                photoToRemove = null
+                isRemoving = false
+                try {
+                    storage.getReferenceFromUrl(photo.url).delete()
                         .addOnFailureListener {
                             errorMessage =
-                                "Image deleted, but its Firestore reference could not be cleared: ${it.message}"
-                            isRemoving = false
+                                "Removed from campsite, but the file could not be deleted from Storage: ${it.message}"
                         }
+                } catch (e: IllegalArgumentException) {
+                    // not a Firebase Storage URL, nothing to delete
                 }
-                .addOnFailureListener {
-                    errorMessage = "Could not delete image: ${it.message}"
-                    isRemoving = false
-                }
-        } catch (e: Exception) {
-            errorMessage = "Invalid image URL: ${e.message}"
-            isRemoving = false
-        }
+            }
+            .addOnFailureListener {
+                errorMessage = "Could not remove image: ${it.message}"
+                isRemoving = false
+            }
     }
 
     Scaffold(
@@ -147,22 +152,23 @@ fun AdminImagesScreen(onBack: () -> Unit) {
             when {
                 isLoading -> CircularProgressIndicator()
 
-                campsites.isEmpty() -> Text("No uploaded campsite images found.")
+                photos.isEmpty() -> Text("No uploaded campsite images found.")
 
                 else -> LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(campsites, key = { it.id }) { campsite ->
+                    items(photos, key = { "${it.campsite.id}|${it.url}" }) { photo ->
                         Card(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
-                                    campsite.name,
+                                    photo.campsite.name,
                                     style = MaterialTheme.typography.titleMedium
                                 )
-                                Text("Campsite: ${campsite.location}")
+                                Text("Campsite: ${photo.campsite.location}")
+                                Spacer(modifier = Modifier.height(8.dp))
                                 AsyncImage(
-                                    model = campsite.imagesUrl,
-                                    contentDescription = "Image of ${campsite.name}",
+                                    model = photo.url,
+                                    contentDescription = "Image of ${photo.campsite.name}",
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(180.dp),
@@ -172,7 +178,7 @@ fun AdminImagesScreen(onBack: () -> Unit) {
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Button(
-                                    onClick = { imageToRemove = campsite },
+                                    onClick = { photoToRemove = photo },
                                     enabled = !isRemoving
                                 ) {
                                     Text("Remove Image")
@@ -184,26 +190,19 @@ fun AdminImagesScreen(onBack: () -> Unit) {
             }
         }
     }
-    /**
-     * Removes a campsite image from Firebase Storage and clears its
-     * image URL from the corresponding Firestore document.
-     *
-     * The campsite document itself is preserved.
-     *
-     * @param campsite Campsite whose image should be removed.
-     */
-    imageToRemove?.let { campsite ->
+
+    photoToRemove?.let { photo ->
         AlertDialog(
             onDismissRequest = {
-                if (!isRemoving) imageToRemove = null
+                if (!isRemoving) photoToRemove = null
             },
             title = { Text("Remove image?") },
             text = {
-                Text("Remove the image for ${campsite.name}? The campsite itself will remain.")
+                Text("Remove this image from ${photo.campsite.name}? The campsite and its other images will remain.")
             },
             confirmButton = {
                 Button(
-                    onClick = { removeImage(campsite) },
+                    onClick = { removeImage(photo) },
                     enabled = !isRemoving
                 ) {
                     Text(if (isRemoving) "Removing..." else "Confirm Remove")
@@ -211,7 +210,7 @@ fun AdminImagesScreen(onBack: () -> Unit) {
             },
             dismissButton = {
                 TextButton(
-                    onClick = { imageToRemove = null },
+                    onClick = { photoToRemove = null },
                     enabled = !isRemoving
                 ) {
                     Text("Cancel")
