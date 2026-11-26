@@ -59,6 +59,9 @@ import com.google.firebase.firestore.DocumentSnapshot
 // helper to safely parse campsites that might have been saved with either capitalized or lowercase keys
 fun DocumentSnapshot.toCampsiteSafely(): Campsite {
     val name = getString("Name") ?: getString("name") ?: ""
+    Log.d("CAMPSITE_DEBUG", "Raw lowercase name: ${get("name")}")
+    Log.d("CAMPSITE_DEBUG", "Raw uppercase Name: ${get("Name")}")
+    Log.d("CAMPSITE_DEBUG", "Document ID: $id, Name: $name")
     val desc = getString("Description") ?: getString("description") ?: ""
     val loc = getString("Location") ?: getString("location") ?: ""
     val limit = getLong("OccupancyLimit") ?: getLong("occupancyLimit") ?: 0L
