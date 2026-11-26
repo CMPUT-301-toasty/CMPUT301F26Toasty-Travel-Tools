@@ -31,6 +31,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
 import android.util.Log
+import androidx.compose.foundation.Image
+import com.example.toastytraveltools.R
 import androidx.compose.foundation.background
 import com.google.firebase.firestore.FieldValue
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +42,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -60,6 +63,10 @@ import com.example.toastytraveltools.model.Campsite
 import com.example.toastytraveltools.model.Lottery
 import com.example.toastytraveltools.model.Message
 import com.example.toastytraveltools.model.Reservation
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 
 
 // this screen appears when the user clicks on the specific row
@@ -140,6 +147,8 @@ fun CampsiteDetailsScreen(
         )
         Log.d("ReviewsDebug", "Flow3")
         return
+
+
     }
     updateScore(snapshot_campsite) //ensure accurate rating before opening campsite
     Column(
@@ -246,6 +255,7 @@ fun CampsiteDetailsScreen(
             text = snapshot_campsite.description,
             style = MaterialTheme.typography.bodyMedium
         )
+
 
         //Present option to review only if campsite is in past reservations
         val messageRepository = MessageRepository()
@@ -440,17 +450,23 @@ fun CampsiteDetailsScreen(
                     if (r.campsiteName == snapshot_campsite.name){
                         reviewScore = r.reviewScore ?: 0
                         reservationId = r.id
-                        FirebaseFirestore.getInstance() //Review poster profile lookup
-                            .collection("messages")
-                            .document(r.reviewMessage ?:"0")
-                            .get()
-                            .addOnSuccessListener { message ->
-                                if (message.exists()) {
-                                    reviewMessageId = r.reviewMessage ?: ""
-                                    reviewText = message.getString("text") ?: "None"
-                                } else
-                                    reviewText = "N/A"
-                            }
+                        val savedReview = r.reviewMessage ?: ""
+                        if (isMessageId(savedReview)) {
+                            FirebaseFirestore.getInstance() //Review poster profile lookup
+                                .collection("messages")
+                                .document(savedReview)
+                                .get()
+                                .addOnSuccessListener { message ->
+                                    if (message.exists()) {
+                                        reviewMessageId = savedReview
+                                        reviewText = message.getString("text") ?: "None"
+                                    } else
+                                    // older reviews saved the text itself instead of a message id
+                                        reviewText = savedReview
+                                }
+                        } else {
+                            reviewText = savedReview.ifBlank { "N/A" }
+                        }
                     }
                 }
             }
@@ -552,19 +568,21 @@ fun CampsiteDetailsScreen(
                                                 sliderPosition.toInt()
                                             ) //this change's the user's score
                                         if(submitReview.toTextFieldBuffer().toString().isNotEmpty()) { //Either add review, or edit the attached review
-                                            if (reviewText == "N/A") {
+                                            if (reviewMessageId == "N/A") {
                                                 reviewMessage.messageType = "review"
                                                 reviewMessage.sendTime = Timestamp.now()
                                                 reviewMessage.messageOwner = deviceId
                                                 reviewMessage.text =
                                                     submitReview.toTextFieldBuffer().toString()
+                                                val newMessageId = messageRepository.addMessage(reviewMessage)
                                                 FirebaseFirestore.getInstance()
                                                     .collection("reservations")
                                                     .document(reservationId)
                                                     .update(
                                                         "reviewMessage",
-                                                        messageRepository.addMessage(reviewMessage)
+                                                        newMessageId
                                                     ) //this adds the document id of the user's review to their reservation listing.
+                                                reviewMessageId = newMessageId // so editing again updates this review
                                             } else {
                                                 FirebaseFirestore.getInstance()
                                                     .collection("messages")
@@ -576,7 +594,7 @@ fun CampsiteDetailsScreen(
                                             }
                                             reviewText = submitReview.toTextFieldBuffer().toString()
                                         } else { //Delete review if it is presnet (set its text to N/A).
-                                            if (reservationId != "0") {
+                                            if (reviewMessageId != "N/A") {
                                                 FirebaseFirestore.getInstance()
                                                     .collection("messages")
                                                     .document(reviewMessageId)
@@ -648,9 +666,13 @@ fun displayReviews (
         Log.d("ReviewsDebug", "${reservations}")
         Log.d("ReviewsDebug", "Lookup Complete")
     }
-    if(reservations.isEmpty()) {
+    // reviews from everyone else, a score on its own still counts as a review
+    val otherReviews = reservations.filter {
+        it.entrantId != entrantId && (it.reviewScore != null || !it.reviewMessage.isNullOrBlank())
+    }
+    if(otherReviews.isEmpty()) {
         Text(
-            text = "No Reviews",
+            text = "No reviews yet",
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(16.dp)
         )
@@ -658,21 +680,17 @@ fun displayReviews (
         return
     }
     Log.d("ReviewsDebug", "${reservations}")
-    for (r in reservations) {
+    for (r in otherReviews) {
         Log.d("ReviewsDebug", "reservation: ${r}")
-        if (r.entrant_id != entrantId) {
-            if (r.reviewMessage != null) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            reviewRow(r.reviewMessage, r.reviewScore ?: 0, r.entrant_id)
-                        }
-                    }
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    reviewRow(r.reviewMessage, r.reviewScore ?: 0, r.entrantId, r.entrantName)
                 }
             }
         }
@@ -684,13 +702,17 @@ fun displayReviews (
 
 
 @Composable
-fun reviewRow(reviewID: String?, rScore: Int, rOwner: String) {
+fun reviewRow(reviewID: String?, rScore: Int, rOwner: String, rName: String = "") {
     //Place reviewer's pfp to the left of review
     //var reviewerName: String = "N/A"
     var reviewerName by remember { mutableStateOf("N/A") }
     var reviewText by remember { mutableStateOf("N/A") }
     LaunchedEffect(rOwner) {
         Log.d("ReviewsDebug", "review owner: $rOwner")
+        if (rOwner.isBlank()) {
+            reviewerName = rName.ifBlank { "Anonymous" }
+            return@LaunchedEffect
+        }
         FirebaseFirestore.getInstance() //Review poster profile lookup
             .collection("entrants")
             .document(rOwner)
@@ -699,21 +721,29 @@ fun reviewRow(reviewID: String?, rScore: Int, rOwner: String) {
                 if (profile.exists()) {
                     reviewerName = profile.getString("name") ?: "None"
                 } else
-                    reviewerName = "User not found"
+                // profile is gone, use the name saved on the reservation
+                    reviewerName = rName.ifBlank { "Anonymous" }
             }
     }
 
     LaunchedEffect(reviewID) {
         Log.d("ReviewsDebug", "review id: $reviewID")
+        val saved = reviewID ?: ""
+        if (!isMessageId(saved)) {
+            // no written review, or an older review that saved the text itself
+            reviewText = saved
+            return@LaunchedEffect
+        }
         FirebaseFirestore.getInstance() //Review poster profile lookup
             .collection("messages")
-            .document(reviewID ?:"0")
+            .document(saved)
             .get()
             .addOnSuccessListener { message ->
                 if (message.exists()) {
                     reviewText = message.getString("text") ?: "None"
                 } else
-                    reviewText = "No review found"
+                // older reviews saved the text itself instead of a message id
+                    reviewText = saved
             }
     }
 
@@ -731,7 +761,7 @@ fun reviewRow(reviewID: String?, rScore: Int, rOwner: String) {
     )
 
     Text(
-        text = rScore.toString(), //replace this with stars if we use stars
+        text = "$rScore/5", //replace this with stars if we use stars
         fontSize = 14.sp,
         style = MaterialTheme.typography.bodyLarge,
         modifier = Modifier
@@ -739,12 +769,19 @@ fun reviewRow(reviewID: String?, rScore: Int, rOwner: String) {
             .padding(horizontal = 18.dp, vertical = 5.dp)
     )
 
-    Text(
-        text = reviewText,
-        fontSize = 14.sp,
-        style = MaterialTheme.typography.bodyLarge,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 5.dp)
-    )
+    // score-only reviews and deleted review text have nothing to show here
+    if (reviewText.isNotBlank() && reviewText != "N/A") {
+        Text(
+            text = reviewText,
+            fontSize = 14.sp,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 18.dp, vertical = 5.dp)
+        )
+    }
 }
+
+// true if the saved review looks like a "messages" document id
+// older reviews saved the text itself, and Firestore crashes on ids with a "/" in them
+fun isMessageId(saved: String): Boolean = saved.isNotBlank() && !saved.contains("/")
