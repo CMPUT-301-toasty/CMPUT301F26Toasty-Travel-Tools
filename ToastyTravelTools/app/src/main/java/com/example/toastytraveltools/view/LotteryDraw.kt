@@ -378,6 +378,9 @@ fun listenForLotteryWins(
 
                 if (entrantId in lottery.notifiedWinners) return@forEach
 
+                // don't mark it as sent if we can't actually show it, try again later
+                if (!LotteryNotifier.canPost(context)) return@forEach
+
                 val lotteryRef = db.collection("lotteries").document(lottery.id)
 
                 // add this entrant to the notified list first so it is only ever sent once
@@ -400,7 +403,6 @@ fun listenForLotteryWins(
                                 ?.notificationsEnabled ?: true
                             if (!enabled) return@addOnSuccessListener
 
-                            // look up which campsite they won
                             // look up which campsite they won
                             withCampsiteName(lottery) { campsiteName ->
                                 LotteryNotifier.send(context, lottery, true, campsiteName)
@@ -432,6 +434,9 @@ fun listenForLotteryLosses(
                 ?.forEach { lottery ->
 
                     if (entrantId in lottery.notifiedLosers) return@forEach
+
+                    // don't mark it as sent if we can't actually show it, try again later
+                    if (!LotteryNotifier.canPost(context)) return@forEach
 
                     val lotteryRef = db.collection("lotteries").document(lottery.id)
 
