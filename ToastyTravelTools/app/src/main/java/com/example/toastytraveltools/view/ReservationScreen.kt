@@ -3,6 +3,7 @@ ReservationScreen.kt
 
 Purpose: This is the screen that shows the past and present reservations of the user. Users are
 able to cancel any active reservations but a confirmation screen will popup to confirm cancellation.
+Lottery winners can claim their spot here, and are only shown the dates that are still available.
 
 Issues:
  - make the active and past buttons more clear on which one is active
@@ -160,6 +161,11 @@ fun ReservationScreen (
     var claimMessage by remember { mutableStateOf<String?>(null) }
     var claimCampsiteName by remember { mutableStateOf("") }
 
+    // dates already reserved at the campsite the user won
+    var bookedDates by remember { mutableStateOf(listOf<Pair<Long, Long>>()) }
+    var datesLoaded by remember { mutableStateOf(false) }
+    var datesError by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(deviceId) {
         Log.d("ReservationDebug", "this device's id: $deviceId")
         loadReservations(
@@ -180,14 +186,62 @@ fun ReservationScreen (
         if (campsiteId != null) {
             loadCampsiteName(campsiteId) { claimCampsiteName = it }
         }
+
+        // claimable only has lotteries this user won, so only winners load the dates
+        val wonLottery = claimable.firstOrNull()
+        if (wonLottery != null) {
+            datesLoaded = false
+            datesError = null
+            loadBookedDates(
+                lottery = wonLottery,
+                onResult = {
+                    bookedDates = it
+                    datesLoaded = true
+                },
+                onError = {
+                    bookedDates = listOf()
+                    datesError = "Could not load the available dates, please try again later"
+                    datesLoaded = true
+                }
+            )
+        }
     }
 
     val lotteryToClaim = claimable.firstOrNull()
 
-    if (showClaimDialog && lotteryToClaim != null) {
+    if (showClaimDialog && lotteryToClaim != null && datesError != null) {
+        AlertDialog(
+            onDismissRequest = { showClaimDialog = false },
+            title = { Text("Something went wrong") },
+            text = { Text(datesError ?: "") },
+            confirmButton = {
+                TextButton(onClick = { showClaimDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    } else if (showClaimDialog && lotteryToClaim != null && !hasAvailableDates(lotteryToClaim, bookedDates)) {
+        // every date is already booked or has passed
+        AlertDialog(
+            onDismissRequest = { showClaimDialog = false },
+            title = { Text("No dates available") },
+            text = {
+                Text(
+                    "Sorry, there are no available dates left at $claimCampsiteName. " +
+                            "All of the dates have already been reserved or are no longer available."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showClaimDialog = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    } else if (showClaimDialog && lotteryToClaim != null) {
         ClaimSpotDialog(
             lottery = lotteryToClaim,
             campsiteName = claimCampsiteName,
+            bookedDates = bookedDates,
             claiming = claiming,
             error = claimMessage,
             onDismiss = { if (!claiming) showClaimDialog = false },
@@ -280,13 +334,16 @@ fun ReservationScreen (
                 if (claimable.isNotEmpty()) {
                     Button(
                         onClick = { showClaimDialog = true },
+                        // wait for the booked dates so taken days are never shown as open
+                        enabled = datesLoaded,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         shape = RectangleShape
                     ) {
                         Text(
-                            "Claim your spot at $claimCampsiteName"
+                            if (datesLoaded) "Claim your spot at $claimCampsiteName"
+                            else "Loading available dates..."
                         )
                     }
                 }
@@ -413,6 +470,7 @@ private fun pickerDateToLocal(utcMillis: Long, endOfDay: Boolean): Long {
 fun ClaimSpotDialog(
     lottery: Lottery,
     campsiteName: String,
+    bookedDates: List<Pair<Long, Long>>,
     claiming: Boolean,
     error: String?,
     onDismiss: () -> Unit,
@@ -420,15 +478,18 @@ fun ClaimSpotDialog(
 ) {
     val bookingStart = lottery.bookingStartDate?.toDate()?.time?.let { startOfDay(it) }
     val bookingEnd = lottery.bookingEndDate?.toDate()?.time?.let { endOfDay(it) }
+    val today = startOfDay(System.currentTimeMillis())
 
-    // only the days inside the booking window can be picked
+    // only days inside the booking window, not in the past and not already booked can be picked
     val state = rememberDateRangePickerState(
         selectableDates = object : SelectableDates {
             override fun isSelectableDate(utcTimeMillis: Long): Boolean {
                 val start = pickerDateToLocal(utcTimeMillis, false)
                 val end = pickerDateToLocal(utcTimeMillis, true)
                 return (bookingStart == null || start >= bookingStart) &&
-                        (bookingEnd == null || end <= bookingEnd)
+                        (bookingEnd == null || end <= bookingEnd) &&
+                        start >= today &&
+                        !overlapsBookedDates(start, end, bookedDates)
             }
         }
     )
@@ -451,6 +512,13 @@ fun ClaimSpotDialog(
                             inputError = "Pick your start and end dates"
                         guestCount == null || guestCount < 1 ->
                             inputError = "Enter the number of guests"
+                        // the picker blocks booked days, but a range could still go over one
+                        overlapsBookedDates(
+                            pickerDateToLocal(start, false),
+                            pickerDateToLocal(end, true),
+                            bookedDates
+                        ) ->
+                            inputError = "Your dates include days that are already booked"
                         else -> {
                             inputError = null
                             onClaim(
@@ -481,6 +549,12 @@ fun ClaimSpotDialog(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
+            )
+
+            Text(
+                text = "Greyed out dates are already reserved or unavailable",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
             OutlinedTextField(
