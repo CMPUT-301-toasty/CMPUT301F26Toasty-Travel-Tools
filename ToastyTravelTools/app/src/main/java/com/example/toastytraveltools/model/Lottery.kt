@@ -50,5 +50,6 @@ data class Lottery(
     var notifiedLosers: List<String> = emptyList(),
     var notifiedWinners: List<String> = emptyList(),
     var spotsRemaining: Int = 0,
-    var reservations: List<Reservation> = emptyList()
+    var reservations: List<Reservation> = emptyList(),
+    var declinedWinners: List<String> = emptyList()
 )

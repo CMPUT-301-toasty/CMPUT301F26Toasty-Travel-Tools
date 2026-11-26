@@ -3,7 +3,9 @@ ReservationScreen.kt
 
 Purpose: This is the screen that shows the past and present reservations of the user. Users are
 able to cancel any active reservations but a confirmation screen will popup to confirm cancellation.
-Lottery winners can claim their spot here, and are only shown the dates that are still available.
+Lottery winners can claim their spot here. If the lottery has more than one campsite they pick
+one campsite first, then the dates, and are only shown dates that are still available.
+Winners can also decline their spot if they changed their mind or none of the dates work.
 
 Issues:
  - make the active and past buttons more clear on which one is active
@@ -59,6 +61,7 @@ import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.ui.text.input.KeyboardType
 import com.example.toastytraveltools.model.Lottery
+import com.example.toastytraveltools.model.Campsite
 import java.util.Calendar
 import java.util.TimeZone
 
@@ -159,12 +162,24 @@ fun ReservationScreen (
     var showClaimDialog by remember { mutableStateOf(false) }
     var claiming by remember { mutableStateOf(false) }
     var claimMessage by remember { mutableStateOf<String?>(null) }
-    var claimCampsiteName by remember { mutableStateOf("") }
 
-    // dates already reserved at the campsite the user won
-    var bookedDates by remember { mutableStateOf(listOf<Pair<Long, Long>>()) }
+    // every campsite in the lottery the user won, and the one they picked
+    var lotteryCampsites by remember { mutableStateOf(listOf<Campsite>()) }
+    var chosenCampsite by remember { mutableStateOf<Campsite?>(null) }
+
+    // dates already reserved at each campsite, the key is the campsite id
+    var bookedDates by remember { mutableStateOf(mapOf<String, List<Pair<Long, Long>>>()) }
     var datesLoaded by remember { mutableStateOf(false) }
     var datesError by remember { mutableStateOf<String?>(null) }
+
+    // declining the reservation
+    var showDeclineConfirm by remember { mutableStateOf(false) }
+    // the exact lottery being declined, saved when the decline button is pressed
+    var lotteryToDecline by remember { mutableStateOf<Lottery?>(null) }
+    var declinePlaceName by remember { mutableStateOf("") }
+    var declining by remember { mutableStateOf(false) }
+    var declineError by remember { mutableStateOf<String?>(null) }
+    var declinedMessage by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(deviceId) {
         Log.d("ReservationDebug", "this device's id: $deviceId")
@@ -182,25 +197,29 @@ fun ReservationScreen (
         )
     }
     LaunchedEffect(claimable) {
-        val campsiteId = claimable.firstOrNull()?.campsiteIds?.firstOrNull()
-        if (campsiteId != null) {
-            loadCampsiteName(campsiteId) { claimCampsiteName = it }
-        }
-
-        // claimable only has lotteries this user won, so only winners load the dates
+        // claimable only has lotteries this user won, so only winners load the campsites and dates
         val wonLottery = claimable.firstOrNull()
         if (wonLottery != null) {
             datesLoaded = false
             datesError = null
-            loadBookedDates(
+            loadLotteryCampsites(
                 lottery = wonLottery,
-                onResult = {
-                    bookedDates = it
-                    datesLoaded = true
+                onResult = { campsites ->
+                    lotteryCampsites = campsites
+                    loadBookedDates(
+                        campsites = campsites,
+                        onResult = {
+                            bookedDates = it
+                            datesLoaded = true
+                        },
+                        onError = {
+                            datesError = "Could not load the available dates, please try again later"
+                            datesLoaded = true
+                        }
+                    )
                 },
                 onError = {
-                    bookedDates = listOf()
-                    datesError = "Could not load the available dates, please try again later"
+                    datesError = "Could not load the campsites, please try again later"
                     datesLoaded = true
                 }
             )
@@ -208,6 +227,17 @@ fun ReservationScreen (
     }
 
     val lotteryToClaim = claimable.firstOrNull()
+    val pickedCampsite = chosenCampsite
+
+    // opens the "are you sure" dialog for this lottery
+    fun askToDecline(lottery: Lottery) {
+        lotteryToDecline = lottery
+        declinePlaceName = if (lotteryCampsites.size == 1) lotteryCampsites.first().name else "this lottery"
+        declineError = null
+        showClaimDialog = false
+        chosenCampsite = null
+        showDeclineConfirm = true
+    }
 
     if (showClaimDialog && lotteryToClaim != null && datesError != null) {
         AlertDialog(
@@ -220,43 +250,76 @@ fun ReservationScreen (
                 }
             }
         )
-    } else if (showClaimDialog && lotteryToClaim != null && !hasAvailableDates(lotteryToClaim, bookedDates)) {
-        // every date is already booked or has passed
+    } else if (showClaimDialog && lotteryToClaim != null &&
+        lotteryCampsites.none { hasAvailableDates(lotteryToClaim, bookedDates[it.id] ?: listOf()) }
+    ) {
+        // every date at every campsite is already booked or has passed
         AlertDialog(
             onDismissRequest = { showClaimDialog = false },
             title = { Text("No dates available") },
             text = {
                 Text(
-                    "Sorry, there are no available dates left at $claimCampsiteName. " +
-                            "All of the dates have already been reserved or are no longer available."
+                    "Sorry, there are no available dates left at " +
+                            (if (lotteryCampsites.size == 1) lotteryCampsites.first().name else "any of the campsites in this lottery") +
+                            ". All of the dates have already been reserved or are no longer available."
                 )
             },
             confirmButton = {
                 TextButton(onClick = { showClaimDialog = false }) {
                     Text("Close")
                 }
+            },
+            dismissButton = {
+                // none of the dates work, so let them turn the reservation down here too
+                TextButton(onClick = { askToDecline(lotteryToClaim) }) {
+                    Text("Decline reservation", color = MaterialTheme.colorScheme.error)
+                }
             }
         )
-    } else if (showClaimDialog && lotteryToClaim != null) {
+    } else if (showClaimDialog && lotteryToClaim != null && pickedCampsite == null) {
+        // first step: pick which campsite to reserve
+        ChooseCampsiteDialog(
+            lottery = lotteryToClaim,
+            campsites = lotteryCampsites,
+            bookedDates = bookedDates,
+            onDismiss = { showClaimDialog = false },
+            onChoose = {
+                chosenCampsite = it
+                claimMessage = null
+            },
+            onDecline = { askToDecline(lotteryToClaim) }
+        )
+    } else if (showClaimDialog && lotteryToClaim != null && pickedCampsite != null) {
+        // second step: pick the dates at that campsite
         ClaimSpotDialog(
             lottery = lotteryToClaim,
-            campsiteName = claimCampsiteName,
-            bookedDates = bookedDates,
+            campsiteName = pickedCampsite.name,
+            bookedDates = bookedDates[pickedCampsite.id] ?: listOf(),
             claiming = claiming,
             error = claimMessage,
-            onDismiss = { if (!claiming) showClaimDialog = false },
+            onDismiss = {
+                if (!claiming) {
+                    claimMessage = null
+                    // go back to the campsite list
+                    chosenCampsite = null
+                }
+            },
             onClaim = { startMillis, endMillis, guests ->
                 claiming = true
                 claimMessage = null
                 claimLotterySpot(
                     lotteryId = lotteryToClaim.id,
                     entrantId = deviceId,
+                    campsiteId = pickedCampsite.id,
                     startMillis = startMillis,
                     endMillis = endMillis,
                     guests = guests,
                     onSuccess = { reservation ->
                         claiming = false
                         showClaimDialog = false
+                        chosenCampsite = null
+                        // the lottery win has been used, so the claim button goes away
+                        claimable = claimable.filter { it.id != lotteryToClaim.id }
 
                         ReservationNotifier.send(context, reservation)
                         onClaimed(reservation)
@@ -266,6 +329,93 @@ fun ReservationScreen (
                         claimMessage = it.localizedMessage ?: "Could not claim your spot"
                     }
                 )
+            }
+        )
+    }
+
+    // ask before declining, it can't be undone
+    val declining_lottery = lotteryToDecline
+    if (showDeclineConfirm && declining_lottery != null) {
+        val placeName = declinePlaceName
+        AlertDialog(
+            onDismissRequest = {
+                if (!declining) {
+                    showDeclineConfirm = false
+                    lotteryToDecline = null
+                }
+            },
+            title = { Text("Decline reservation?") },
+            text = {
+                Column {
+                    Text(
+                        "Are you sure you want to decline your spot at $placeName? " +
+                                "You will not be able to reserve for this lottery again. This can't be undone."
+                    )
+                    declineError?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !declining,
+                    onClick = {
+                        declining = true
+                        declineError = null
+                        declineLotterySpot(
+                            lotteryId = declining_lottery.id,
+                            entrantId = deviceId,
+                            onSuccess = {
+                                declining = false
+                                showDeclineConfirm = false
+                                lotteryToDecline = null
+                                // only remove the lottery that was declined, other wins stay
+                                claimable = claimable.filter { it.id != declining_lottery.id }
+                                declinedMessage = "You have declined your spot at $placeName. " +
+                                        "You can no longer reserve for this lottery."
+                            },
+                            onError = {
+                                declining = false
+                                declineError = it.localizedMessage ?: "Could not decline the reservation"
+                            }
+                        )
+                    }
+                ) {
+                    Text(
+                        if (declining) "Declining..." else "Yes, decline",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !declining,
+                    onClick = {
+                        showDeclineConfirm = false
+                        lotteryToDecline = null
+                    }
+                ) {
+                    Text("Keep my spot")
+                }
+            }
+        )
+    }
+
+    // let them know the decline went through
+    val declinedText = declinedMessage
+    if (declinedText != null) {
+        AlertDialog(
+            onDismissRequest = { declinedMessage = null },
+            title = { Text("Reservation declined") },
+            text = { Text(declinedText) },
+            confirmButton = {
+                TextButton(onClick = { declinedMessage = null }) {
+                    Text("OK")
+                }
             }
         )
     }
@@ -333,7 +483,11 @@ fun ReservationScreen (
             Column {
                 if (claimable.isNotEmpty()) {
                     Button(
-                        onClick = { showClaimDialog = true },
+                        onClick = {
+                            // always start on the campsite list, it has the decline button
+                            chosenCampsite = null
+                            showClaimDialog = true
+                        },
                         // wait for the booked dates so taken days are never shown as open
                         enabled = datesLoaded,
                         modifier = Modifier
@@ -342,8 +496,9 @@ fun ReservationScreen (
                         shape = RectangleShape
                     ) {
                         Text(
-                            if (datesLoaded) "Claim your spot at $claimCampsiteName"
-                            else "Loading available dates..."
+                            if (!datesLoaded) "Loading available dates..."
+                            else if (lotteryCampsites.size == 1) "Claim your spot at ${lotteryCampsites.first().name}"
+                            else "Claim your spot - choose from ${lotteryCampsites.size} campsites"
                         )
                     }
                 }
@@ -455,6 +610,81 @@ fun ReservationScreen (
 
 }
 
+// lets a lottery winner pick one of the campsites in the lottery
+// campsites with no dates left are shown but can't be picked
+@Composable
+fun ChooseCampsiteDialog(
+    lottery: Lottery,
+    campsites: List<Campsite>,
+    bookedDates: Map<String, List<Pair<Long, Long>>>,
+    onDismiss: () -> Unit,
+    onChoose: (Campsite) -> Unit,
+    onDecline: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Choose a campsite") },
+        text = {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    Text(
+                        text = if (campsites.size == 1) "You won a lottery for this campsite. Choose your dates, or decline if you changed your mind."
+                        else "You won a lottery with ${campsites.size} campsites. Pick the one you want to reserve, you can only reserve one.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                items(campsites) { campsite ->
+                    val available = hasAvailableDates(lottery, bookedDates[campsite.id] ?: listOf())
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = campsite.name,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (campsite.location.isNotBlank()) {
+                                Text(text = campsite.location, style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Text(
+                                text = "Max guests: ${campsite.occupancyLimit}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            if (available) {
+                                Button(
+                                    onClick = { onChoose(campsite) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    shape = RectangleShape
+                                ) {
+                                    Text("Choose dates")
+                                }
+                            } else {
+                                Text(
+                                    text = "No dates available",
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 8.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            // changed their mind or none of the campsites work for them
+            TextButton(onClick = onDecline) {
+                Text("Decline reservation", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
 private fun pickerDateToLocal(utcMillis: Long, endOfDay: Boolean): Long {
     val utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"))
     utc.timeInMillis = utcMillis
@@ -535,7 +765,7 @@ fun ClaimSpotDialog(
         },
         dismissButton = {
             TextButton(enabled = !claiming, onClick = onDismiss) {
-                Text("Cancel")
+                Text("Back")
             }
         }
     ) {
