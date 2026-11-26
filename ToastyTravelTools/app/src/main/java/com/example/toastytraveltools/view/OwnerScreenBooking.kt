@@ -174,7 +174,8 @@ fun OwnerScreenBooking(
     onLotteryClick: () -> Unit,
     onBookingClick: () -> Unit,
     onProfileClick: (String) -> Unit,
-    userId: String
+    userId: String,
+    onMessageClick: (String) -> Unit = {}
 ) {
     var selectedTab by remember { mutableStateOf("active") } // "active", "past", "canceled"
     var reservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -411,6 +412,15 @@ fun OwnerScreenBooking(
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(top = 4.dp)
                                     )
+                                }
+                                OutlinedButton(
+                                    onClick = { onMessageClick(reservation.id) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    shape = RectangleShape
+                                ) {
+                                    Text("Message ${reservation.entrantName.ifBlank { "entrant" }}")
                                 }
 
                                 if (selectedTab == "active") {

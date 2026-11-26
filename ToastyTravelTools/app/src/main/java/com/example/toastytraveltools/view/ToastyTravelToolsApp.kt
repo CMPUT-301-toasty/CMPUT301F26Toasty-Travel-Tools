@@ -131,7 +131,8 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                     navController.navigate("owner_booking")
                 },
                 onProfileClick = { id -> navController.navigate("owner_profile/$id") },
-                userId = deviceId
+                userId = deviceId,
+                onMessageClick = { id -> navController.navigate("chat/$id") }
             )
         }
         composable("owner_lottery") {
@@ -259,7 +260,17 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onClaimed = { reservation ->
                     claimedReservation = reservation
                     navController.navigate("claimed_confirmation")
-                }
+                },
+                onMessageClick = { id -> navController.navigate("chat/$id") }
+            )
+        }
+
+        // Chat between entrant and owner about one reservation
+        composable("chat/{reservationId}") { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("reservationId") ?: ""
+            ChatScreen(
+                reservationId = id,
+                onBack = { navController.popBackStack() }
             )
         }
 
