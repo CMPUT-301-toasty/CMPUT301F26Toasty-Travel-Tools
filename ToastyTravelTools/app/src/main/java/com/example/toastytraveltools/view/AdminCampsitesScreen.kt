@@ -12,7 +12,7 @@
  * Outstanding issues:
  * Reservation matching currently uses campsite names rather than IDs.
  */
-package com.example.toastytraveltools
+package com.example.toastytraveltools.view
 
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.model.Campsite

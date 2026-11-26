@@ -11,10 +11,6 @@ Issues:
 package com.example.toastytraveltools.view
 
 import android.provider.Settings
-import com.example.toastytraveltools.AdminDashboardScreen
-import com.example.toastytraveltools.AdminCampsitesScreen
-import com.example.toastytraveltools.AdminProfilesScreen
-import com.example.toastytraveltools.AdminImagesScreen
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
