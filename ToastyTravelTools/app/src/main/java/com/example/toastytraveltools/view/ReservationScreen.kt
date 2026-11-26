@@ -178,7 +178,8 @@ fun ReservationScreen (
     onReservationClick: () -> Unit = {},
     onProfileClick: (String) -> Unit = {},
     onClaimed: (Reservation) -> Unit = {},
-    onCancelled: (Reservation) -> Unit = {}
+    onCancelled: (Reservation) -> Unit = {},
+    onMessageClick: (String) -> Unit = {}
 ) {
     var active_clicked by remember { mutableStateOf(true) }
 
@@ -628,7 +629,15 @@ fun ReservationScreen (
                                     }",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
-
+                                OutlinedButton(
+                                    onClick = { onMessageClick(reservation.id) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                    shape = RectangleShape
+                                ) {
+                                    Text("Message owner")
+                                }
                                 if (active_clicked) {
                                     Button(
                                         onClick = { selected = reservation },
