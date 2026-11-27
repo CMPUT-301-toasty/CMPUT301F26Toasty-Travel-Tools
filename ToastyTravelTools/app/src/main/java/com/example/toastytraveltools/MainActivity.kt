@@ -38,5 +38,9 @@ class MainActivity : ComponentActivity() {
                 ToastyTravelToolsApp(notificationsAllowed = notificationsAllowed)
             }
         }
+        android.util.Log.d(
+            "NOTIFICATION_TEST",
+            "Notifications allowed: $notificationsAllowed"
+        )
     }
 }

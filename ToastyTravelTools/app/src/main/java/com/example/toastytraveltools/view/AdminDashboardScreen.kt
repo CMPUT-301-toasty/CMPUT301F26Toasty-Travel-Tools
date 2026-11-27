@@ -59,6 +59,14 @@ fun AdminDashboardScreen(navController: NavController) {
             ) {
                 Text("Uploaded Images")
             }
+
+            Button(
+                onClick = { navController.navigate("admin_notification_logs") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Notification Logs")
+            }
+
         }
     }
 }

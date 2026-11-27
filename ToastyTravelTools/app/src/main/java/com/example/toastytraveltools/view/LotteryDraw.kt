@@ -476,16 +476,23 @@ fun listenForLotteryWins(
                     // people who turned notifications off don't get one
                     db.collection("entrants").document(entrantId).get()
                         .addOnSuccessListener { profile ->
-                            val enabled = profile.toObject(UserProfile::class.java)
-                                ?.notificationsEnabled ?: true
+                            val user = profile.toObject(UserProfile::class.java)
+                            val enabled = user?.notificationsEnabled ?: true
+
                             if (!enabled) return@addOnSuccessListener
 
-                            // look up which campsite they won
-                            // look up which campsite they won
                             withCampsiteName(lottery) { campsiteName ->
-                                LotteryNotifier.send(context, lottery, true, campsiteName)
+                                LotteryNotifier.send(
+                                    context = context,
+                                    l = lottery,
+                                    win = true,
+                                    campsiteName = campsiteName,
+                                    recipientId = entrantId,
+                                    recipientName = user?.name ?: "Unknown user"
+                                )
                             }
                         }
+
                 }
             }
         }
@@ -535,18 +542,26 @@ fun listenForLotteryLosses(
                         if (!claimed) return@addOnSuccessListener
 
                         // people who turned notifications off don't get one
+
                         db.collection("entrants").document(entrantId).get()
                             .addOnSuccessListener { profile ->
-                                val enabled = profile.toObject(UserProfile::class.java)
-                                    ?.notificationsEnabled ?: true
-                                if (enabled) {
-                                    if (enabled) {
-                                        withCampsiteName(lottery) { campsiteName ->
-                                            LotteryNotifier.send(context, lottery, false, campsiteName)
-                                        }
-                                    }
+                                val user = profile.toObject(UserProfile::class.java)
+                                val enabled = user?.notificationsEnabled ?: true
+
+                                if (!enabled) return@addOnSuccessListener
+
+                                withCampsiteName(lottery) { campsiteName ->
+                                    LotteryNotifier.send(
+                                        context = context,
+                                        l = lottery,
+                                        win = false,
+                                        campsiteName = campsiteName,
+                                        recipientId = entrantId,
+                                        recipientName = user?.name ?: "Unknown user"
+                                    )
                                 }
                             }
+
                     }
                 }
         }
