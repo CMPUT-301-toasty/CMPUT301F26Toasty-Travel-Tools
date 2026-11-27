@@ -15,8 +15,8 @@ Issues:
 package com.example.toastytraveltools.view
 
 import androidx.compose.foundation.BorderStroke
-import com.example.toastytraveltools.view.components.ToastyBottomBar
-import com.example.toastytraveltools.view.components.ToastyNavItem
+import com.example.toastytraveltools.view.components.MainTab
+import com.example.toastytraveltools.view.components.ToastyMainBottomBar
 
 import android.provider.Settings
 import android.util.Log
@@ -131,21 +131,6 @@ fun cancelReservation(
         .addOnFailureListener { onError(it) }
 }
 
-@Composable
-fun BottomButtons_Reservation(
-    onSearchClick: () -> Unit,
-    onReservationClick: () -> Unit,
-    onProfileClick: (String) -> Unit
-) {
-    val context = LocalContext.current
-    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
-    ToastyBottomBar {
-        ToastyNavItem(label = "Search", selected = false, onClick = onSearchClick)
-        ToastyNavItem(label = "Reservation", selected = true, onClick = onReservationClick)
-        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
-    }
-}
 @Composable
 fun ReservationScreen (
     onNavigateBack: () -> Unit = {},
@@ -488,12 +473,7 @@ fun ReservationScreen (
         topBar = {
             @OptIn(ExperimentalMaterial3Api::class)
             (TopAppBar(
-                title = { Text("Reservations") },
-                navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
-                        Text("Back")
-                    }
-                }
+                title = { Text("Reservations") }
             ))
         },
         bottomBar = {
@@ -519,10 +499,11 @@ fun ReservationScreen (
                         )
                     }
                 }
-                BottomButtons_Reservation(
-                    onSearchClick = onSearchClick,
-                    onReservationClick = onReservationClick,
-                    onProfileClick = onProfileClick
+                ToastyMainBottomBar(
+                    selected = MainTab.Reservations,
+                    onExploreClick = onSearchClick,
+                    onReservationsClick = onReservationClick,
+                    onProfileClick = { onProfileClick(deviceId) }
                 )
             }
         }

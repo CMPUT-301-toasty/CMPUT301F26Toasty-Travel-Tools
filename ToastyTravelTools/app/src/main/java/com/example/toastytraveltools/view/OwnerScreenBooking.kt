@@ -1,8 +1,6 @@
 package com.example.toastytraveltools.view
 
 import androidx.compose.foundation.BorderStroke
-import com.example.toastytraveltools.view.components.ToastyBottomBar
-import com.example.toastytraveltools.view.components.ToastyNavItem
 
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.toastytraveltools.model.Reservation
+import com.example.toastytraveltools.controller.CampsiteRepository
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -117,34 +116,14 @@ fun loadOwnerReservations(
         .addOnFailureListener { onError(it) }
 }
 
-@Composable
-fun BottomButtons_OwnerBookings(
-    onOwnerScreenClick: () -> Unit,
-    onLotteryClick: () -> Unit,
-    onBookingClick: () -> Unit,
-    onProfileClick: (String) -> Unit
-) {
-    val context = LocalContext.current
-    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
-    ToastyBottomBar {
-        ToastyNavItem(label = "Sites", selected = false, onClick = onOwnerScreenClick)
-        ToastyNavItem(label = "Lotteries", selected = false, onClick = onLotteryClick)
-        ToastyNavItem(label = "Bookings", selected = true, onClick = onBookingClick)
-        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OwnerScreenBooking(
     onNavigateBack: () -> Unit,
-    onOwnerScreenClick: () -> Unit,
-    onLotteryClick: () -> Unit,
-    onBookingClick: () -> Unit,
-    onProfileClick: (String) -> Unit,
     userId: String,
-    onMessageClick: (String) -> Unit = {}
+    onMessageClick: (String) -> Unit = {},
+    campsiteIdFilter: String? = null,
+    campsiteRepository: CampsiteRepository? = null
 ) {
     var selectedTab by remember { mutableStateOf("active") } // "active", "past", "canceled"
     var reservations by remember { mutableStateOf<List<Reservation>>(emptyList()) }
@@ -171,8 +150,20 @@ fun OwnerScreenBooking(
         )
     }
 
+    // when opened from a campsite's Details page, only show that campsite's bookings.
+    // Reservations store the campsite name, so look the name up from the id.
+    val filterName: String? = campsiteIdFilter?.let { id ->
+        campsiteRepository?.campsites?.find { it.id == id }?.name
+    }
+    val waitingForFilter = campsiteIdFilter != null && filterName == null &&
+            campsiteRepository?.isLoading == true
+
     val now = Timestamp.now()
-    val shown = reservations
+    // a filter for a campsite that no longer exists shows nothing rather than every booking
+    val shown = reservationsForCampsite(
+        reservations,
+        if (campsiteIdFilter != null) filterName.orEmpty().ifEmpty { "\u0000" } else null
+    )
         .filter {
             when (selectedTab) {
                 "active" -> it.status == "active" && it.endDate > now
@@ -227,20 +218,14 @@ fun OwnerScreenBooking(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reservations") },
+                title = {
+                    Text(if (filterName != null) "Bookings · $filterName" else "Bookings for my campsites")
+                },
                 navigationIcon = {
                     TextButton(onClick = onNavigateBack) {
                         Text("Back")
                     }
                 }
-            )
-        },
-        bottomBar = {
-            BottomButtons_OwnerBookings(
-                onOwnerScreenClick = onOwnerScreenClick,
-                onLotteryClick = onLotteryClick,
-                onBookingClick = onBookingClick,
-                onProfileClick = onProfileClick
             )
         }
     ) { innerPadding ->
@@ -299,7 +284,7 @@ fun OwnerScreenBooking(
             }
 
             // Reservation list
-            if (isLoading) {
+            if (isLoading || waitingForFilter) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()

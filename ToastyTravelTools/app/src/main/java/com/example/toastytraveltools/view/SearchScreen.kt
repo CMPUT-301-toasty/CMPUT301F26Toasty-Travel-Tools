@@ -12,8 +12,11 @@ Issues:
 package com.example.toastytraveltools.view
 
 import androidx.compose.foundation.BorderStroke
-import com.example.toastytraveltools.view.components.ToastyBottomBar
-import com.example.toastytraveltools.view.components.ToastyNavItem
+import com.example.toastytraveltools.view.components.MainTab
+import com.example.toastytraveltools.view.components.ToastyMainBottomBar
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.runtime.LaunchedEffect
 
 import android.provider.Settings
 import androidx.compose.foundation.clickable
@@ -46,6 +49,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
@@ -247,7 +255,7 @@ fun CampsiteRow(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp)
+            .clip(MaterialTheme.shapes.medium)
             .clickable { onClick() }
     ) {
         Row(
@@ -314,32 +322,15 @@ fun CampsiteRow(
     }
 }
 
-// the three buttons pinned to the bottom of the screen
-@Composable
-fun BottomButtons_Search(
-    onSearchClick: () -> Unit,
-    onReservationClick: () -> Unit,
-    onProfileClick: (String) -> Unit = {}
-) {
-    val context = LocalContext.current
-    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
-    ToastyBottomBar {
-        ToastyNavItem(label = "Search", selected = true, onClick = onSearchClick)
-        ToastyNavItem(label = "Reservation", selected = false, onClick = onReservationClick)
-        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
-    }
-}
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    onNavigateBack: () -> Unit = {},
     onCampsiteClick: (String) -> Unit,
+    onAddCampsiteClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onReservationClick: () -> Unit = {},
     onProfileClick: (String) -> Unit = {}
 ) {
-    var searchClicked by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var results by remember { mutableStateOf(listOf<Campsite>()) }
     var hasSearched by remember { mutableStateOf(false) }
@@ -348,48 +339,85 @@ fun SearchScreen(
     var filter_date by remember { mutableStateOf("") }
     var filter_num_guests by remember { mutableStateOf("") }
     var filter_tags by remember { mutableStateOf("") }
-    
+
     var filter_my_campsites by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
+    // Airbnb-style: show every campsite when Explore opens; searching narrows the list
+    fun runSearch(query: String) {
+        searchCampsite(
+            query = query,
+            onResult = {
+                results = it
+                hasSearched = true
+            },
+            onError = {
+                results = listOf()
+                hasSearched = true
+            }
+        )
+    }
+    LaunchedEffect(Unit) { runSearch("") }
+
     Scaffold(
         topBar = {
-            @OptIn(ExperimentalMaterial3Api::class)
-            TopAppBar(
-                title = { Text("Search Campsites") },
-                navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
-                        Text("Back")
-                    }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 4.dp)
+            ) {
+                Text(
+                    text = "Toasty Travel Tools",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+                Text(
+                    text = "Explore campsites, or list your own",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onAddCampsiteClick,
+                // label the whole button; the "+" glyph is decorative
+                modifier = Modifier
+                    .testTag("addCampsiteAction")
+                    .semantics { contentDescription = "List a campsite" },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                shape = MaterialTheme.shapes.medium,
+                text = { Text("List a campsite") },
+                icon = {
+                    Text(
+                        "+",
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.clearAndSetSemantics { }
+                    )
                 }
             )
         },
         bottomBar = {
-            BottomButtons_Search(
-                onSearchClick = onSearchClick,
-                onReservationClick = onReservationClick,
-                onProfileClick = onProfileClick
+            ToastyMainBottomBar(
+                selected = MainTab.Explore,
+                onExploreClick = onSearchClick,
+                onReservationsClick = onReservationClick,
+                onProfileClick = { onProfileClick(deviceId) }
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp)
-                .padding(top = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(innerPadding),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (!searchClicked) {
-                Button(shape = MaterialTheme.shapes.small, onClick = { searchClicked = true }) {
-                    Text("Search")
-                }
-            } else {
-                // search bar
+            // search bar
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -404,43 +432,26 @@ fun SearchScreen(
                     )
                     Button(
                         shape = MaterialTheme.shapes.small,
-                        onClick = {
-                            if (search.isNotBlank()) {
-                                searchCampsite(
-                                    query = search,
-                                    onResult = {
-                                        results = it
-                                        hasSearched = true
-                                    },
-                                    onError = {
-                                        results = listOf()
-                                        hasSearched = true
-                                    }
-                                )
-                            }
-                        }
+                        onClick = { runSearch(search.trim()) }
                     ) {
                         Text("Search")
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
+            item {
                 OutlinedButton(
                     shape = MaterialTheme.shapes.small,
                     onClick = { filter = !filter },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    if (filter){
-                        Text("Hide filters")
-                    } else if (!filter) {
-                        Text("Filter")
-                    }
+                    Text(if (filter) "Hide filters" else "Filter")
                 }
+            }
 
-                // filter options
-                if (filter) {
-                    Spacer(modifier = Modifier.height(8.dp))
+            // filter options
+            if (filter) {
+                item {
                     Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -475,7 +486,7 @@ fun SearchScreen(
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth()
                             )
-                            
+
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.fillMaxWidth()
@@ -486,13 +497,11 @@ fun SearchScreen(
                                 )
                                 Text("Only show campsites I created")
                             }
-                            
+
                             Button(
                                 shape = MaterialTheme.shapes.small,
                                 onClick = {
                                     if (filter_my_campsites) {
-                                        // if checkbox is ticked, only filter on my campsites (bypassing the other filters for simplicity based on prompt)
-                                        // if it's meant to intersect we can change that logic
                                         searchMyCampsites(
                                             ownerId = deviceId,
                                             onResult = { results = it; hasSearched = true },
@@ -527,27 +536,24 @@ fun SearchScreen(
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // results
-                if (hasSearched) {
-                    val errMessage = if (filter_my_campsites) "You own no campsites" else "No campsites found"
-                    if (results.isEmpty()) {
+            // results
+            if (hasSearched) {
+                if (results.isEmpty()) {
+                    item {
                         Text(
-                            text = errMessage,
+                            text = if (filter_my_campsites) "You own no campsites" else "No campsites found",
                             style = MaterialTheme.typography.bodyLarge,
-                            modifier = Modifier.padding(top = 16.dp)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
-                            items(results) { campsite ->
-                                CampsiteRow(
-                                    campsite = campsite,
-                                    onClick = { onCampsiteClick(campsite.id)}
-                                )
-                            }
-                        }
+                    }
+                } else {
+                    items(results, key = { it.id }) { campsite ->
+                        CampsiteRow(
+                            campsite = campsite,
+                            onClick = { onCampsiteClick(campsite.id) }
+                        )
                     }
                 }
             }

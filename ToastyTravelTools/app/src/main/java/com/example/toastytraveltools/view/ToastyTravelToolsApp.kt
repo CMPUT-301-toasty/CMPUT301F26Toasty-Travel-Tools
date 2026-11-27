@@ -1,7 +1,10 @@
 /*
 ToastyTravelToolsApp.kt
 
-Purpose: This is the main file for the Toasty Travel Tools app. It contains the navigation
+Purpose: This is the main file for the Toasty Travel Tools app. It contains the navigation.
+There are no modes: everyone starts on Explore ("search") with one bottom bar
+(Explore / Reservations / Profile). Owner actions appear on campsites you own, and admin
+tools are reachable from Profile only for profiles whose role is "admin".
 
 Issues:
  - no outstanding issues currently
@@ -26,6 +29,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import com.example.toastytraveltools.view.components.AdminGate
+import com.example.toastytraveltools.view.components.rememberIsAdmin
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.controller.LotteryRepository
 import com.example.toastytraveltools.controller.ReservationRepository
@@ -70,173 +77,141 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
     val lotteryRepository = remember { LotteryRepository() }
     val reservationRepository = remember { ReservationRepository() }
 
+    // role read from entrants/{deviceId}; null while loading. Gates the Admin entry and routes.
+    val isAdmin = rememberIsAdmin(deviceId)
+
+    // first launch on a new device: make the entrant create a profile before anything else
+    FirstRunProfileDialog(deviceId = deviceId)
+
+    // top-level tabs and "back to Explore" never stack copies of the same screen
+    fun goToTab(route: String) {
+        navController.navigate(route) {
+            popUpTo("search") { inclusive = false }
+            launchSingleTop = true
+        }
+    }
+    fun goToExplore() = goToTab("search")
+    val goToProfile: (String) -> Unit = { id -> goToTab("profile/$id") }
+
+    // admin routes: render only for admins, send everyone else back to Explore
+    @Composable
+    fun adminOnly(content: @Composable () -> Unit) =
+        AdminGate(isAdmin = isAdmin, onDenied = { goToExplore() }, content = content)
+
+    val optionalCampsiteArg = listOf(
+        navArgument("campsiteId") {
+            type = NavType.StringType
+            nullable = true
+            defaultValue = null
+        }
+    )
+
     NavHost(
         navController = navController,
-        startDestination = "home"
+        startDestination = "search"
     ) {
 
-        // Main home screen
-        composable("home") {
-            HomeScreen(
-                onNavigateToUser = {
-                    navController.navigate("search")
-                },
-                onNavigateToOwner = {
-                    navController.navigate("owner_home")
-                },
-                onNavigateToAdmin = {
-                    navController.navigate("admin")
-                }
-            )
-        }
-
-        // Owner screens
-        composable("owner_home") {
-            OwnerHomeScreen(
-                onNavigateToAddCampsite = {
-                    navController.navigate("owner_add")
-                },
-                onNavigateToCreateLottery = {
-                    navController.navigate("owner_create_lottery")
-                },
-                onNavigateToEditCampsite = {
-                    navController.navigate("owner_edit_campsite")
-                },
-                onNavigateBack = {
-                    navController.navigate("home")
-                },
-                onOwnerScreenClick = {
-                    navController.navigate("owner_home")
-                },
-                onBookingClick = {
-                    navController.navigate("owner_booking")
-                },
-                onLotteryClick = {
-                    navController.navigate("owner_lottery")
-                },
-                onProfileClick = { id -> navController.navigate("owner_profile/$id") }
-            )
-        }
-
-        composable("owner_booking") {
-            OwnerScreenBooking(
-                onNavigateBack = { navController.navigate("home") },
-                onOwnerScreenClick = {
-                    navController.navigate("owner_home")
-                },
-
-                onLotteryClick = {
-                    navController.navigate("owner_lottery")
-                },
-                onBookingClick = {
-                    navController.navigate("owner_booking")
-                },
-                onProfileClick = { id -> navController.navigate("owner_profile/$id") },
-                userId = deviceId,
-                onMessageClick = { id -> navController.navigate("chat/$id") }
-            )
-        }
-        composable("owner_lottery") {
-            OwnerScreenLottery(
-                onNavigateBack = { navController.navigate("home") }
-            )
-        }
-
-        composable("owner_profile/{deviceId}") { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("deviceId") ?: ""
-            OwnerProfileScreen(
-                userId = id,
-                onNavigateBack = { navController.navigate("home") },
-            )
-        }
-
-        composable("owner_add") {
-            OwnerScreenAddCampsite(
-                repository = campsiteRepository,
-                onNavigateBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        // The correct block for creating lotteries
-        composable("owner_create_lottery") {
-            OwnerScreenCreateLottery(
-                lotteryRepository = lotteryRepository,
-                campsiteRepository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("owner_edit_campsite") {
-            OwnerScreenEditCampsite(
-                repository = campsiteRepository,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        // Admin screens
-        composable("admin") {AdminDashboardScreen(navController)
-        }
-
-        composable("admin_campsites") {
-            AdminCampsitesScreen(
-                repository = campsiteRepository,
-                onBack = {
-                    navController.navigate("admin")
-                }
-            )
-        }
-
-        composable("admin_profiles") {
-            AdminProfilesScreen(
-                onBack = {
-                    navController.navigate("admin")
-                }
-            )
-        }
-
-        composable("admin_images") {
-            AdminImagesScreen(
-                onBack = {
-                    navController.navigate("admin")
-                }
-            )
-        }
-
-        composable("admin_reviews") {
-            AdminReviewsScreen(
-                reservationRepository = reservationRepository,
-                onBack = {
-                    navController.navigate("admin")
-                }
-            )
-        }
-
-        // Search screen
+        // Explore: the start screen for everyone
         composable("search") {
             SearchScreen(
-                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
                 onCampsiteClick = { id -> navController.navigate("details/$id") },
-                onSearchClick = { navController.navigate("search") },
-                onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { id -> navController.navigate("profile/$id") }
+                onAddCampsiteClick = { navController.navigate("owner_add") },
+                onSearchClick = { goToExplore() },
+                onReservationClick = { goToTab("reservation") },
+                onProfileClick = goToProfile
             )
         }
 
-        // Campsite details
+        // Campsite details: guest view, or owner actions if this device owns the campsite
         composable("details/{campsiteId}") { backStackEntry ->
-
             val campsiteId =
                 backStackEntry.arguments?.getString("campsiteId") ?: ""
 
             CampsiteDetailsScreen(
                 campsiteId = campsiteId,
-                onBack = {
-                    navController.popBackStack()
-                },
-                onError = {}
+                onBack = { navController.popBackStack() },
+                onError = {},
+                campsiteRepository = campsiteRepository,
+                onEditCampsite = { id -> navController.navigate("owner_edit_campsite?campsiteId=$id") },
+                onCreateLottery = { id -> navController.navigate("owner_create_lottery?campsiteId=$id") },
+                onViewBookings = { id -> navController.navigate("owner_booking?campsiteId=$id") },
+                onCampsiteDeleted = { goToExplore() }
             )
+        }
+
+        // Owner forms. Anyone can list a campsite; ownerId is this device's id.
+        composable("owner_add") {
+            OwnerScreenAddCampsite(
+                repository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("owner_edit_campsite?campsiteId={campsiteId}", arguments = optionalCampsiteArg) { backStackEntry ->
+            OwnerScreenEditCampsite(
+                repository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() },
+                initialCampsiteId = backStackEntry.arguments?.getString("campsiteId")
+            )
+        }
+
+        composable("owner_create_lottery?campsiteId={campsiteId}", arguments = optionalCampsiteArg) { backStackEntry ->
+            OwnerScreenCreateLottery(
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() },
+                initialCampsiteId = backStackEntry.arguments?.getString("campsiteId")
+            )
+        }
+
+        // Bookings for my campsites (all of them, or one when campsiteId is given)
+        composable("owner_booking?campsiteId={campsiteId}", arguments = optionalCampsiteArg) { backStackEntry ->
+            OwnerScreenBooking(
+                onNavigateBack = { navController.popBackStack() },
+                userId = deviceId,
+                onMessageClick = { id -> navController.navigate("chat/$id") },
+                campsiteIdFilter = backStackEntry.arguments?.getString("campsiteId"),
+                campsiteRepository = campsiteRepository
+            )
+        }
+
+        // Admin screens, reachable from Profile for admins only
+        composable("admin") {
+            adminOnly { AdminDashboardScreen(navController) }
+        }
+
+        composable("admin_campsites") {
+            adminOnly {
+                AdminCampsitesScreen(
+                    repository = campsiteRepository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable("admin_profiles") {
+            adminOnly {
+                AdminProfilesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable("admin_images") {
+            adminOnly {
+                AdminImagesScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+        }
+
+        composable("admin_reviews") {
+            adminOnly {
+                AdminReviewsScreen(
+                    reservationRepository = reservationRepository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
 
         // Reservation confirmation
@@ -250,23 +225,19 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
 
             if (reservation != null) {
                 ConfirmationScreen(reservation = reservation,
-                    onHome = {
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = false }
-                        }
-                    })
+                    onHome = { goToExplore() })
             } else {
                 Text("Loading...")
             }
         }
 
-        // Reservation screen
+        // Reservations tab
         composable("reservation") {
             ReservationScreen(
-                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
-                onSearchClick = { navController.navigate("search") },
-                onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { id -> navController.navigate("profile/$id") },
+                onNavigateBack = { navController.popBackStack() },
+                onSearchClick = { goToExplore() },
+                onReservationClick = { goToTab("reservation") },
+                onProfileClick = goToProfile,
                 onClaimed = { reservation ->
                     claimedReservation = reservation
                     navController.navigate("claimed_confirmation")
@@ -279,14 +250,21 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
             )
         }
 
+        // Profile tab, with My campsites, hosting entries and (for admins) Admin tools
         composable("profile/{deviceId}") { backStackEntry ->
             val id = backStackEntry.arguments?.getString("deviceId") ?: ""
             ProfileScreen(
                 userId = id,
-                onNavigateBack = { navController.popBackStack("home", inclusive = false) },
-                onSearchClick = { navController.navigate("search") },
-                onReservationClick = { navController.navigate("reservation") },
-                onProfileClick = { profileId -> navController.navigate("profile/$profileId") }
+                onNavigateBack = { navController.popBackStack() },
+                onSearchClick = { goToExplore() },
+                onReservationClick = { goToTab("reservation") },
+                onProfileClick = goToProfile,
+                isAdmin = isAdmin == true && id == deviceId,
+                myCampsites = ownedCampsites(campsiteRepository.campsites, id),
+                onCampsiteClick = { campsiteId -> navController.navigate("details/$campsiteId") },
+                onOwnerBookingsClick = { navController.navigate("owner_booking") },
+                onAddCampsiteClick = { navController.navigate("owner_add") },
+                onAdminClick = { navController.navigate("admin") }
             )
         }
 
@@ -295,11 +273,7 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
             val reservation = cancelledReservation
             if (reservation != null) {
                 CancellationScreen(reservation = reservation,
-                    onHome = {
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = false }
-                        }
-                    })
+                    onHome = { goToExplore() })
             } else {
                 Text("Loading...")
             }
@@ -309,11 +283,7 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
             val reservation = claimedReservation
             if (reservation != null) {
                 ConfirmationScreen(reservation = reservation,
-                    onHome = {
-                        navController.navigate("home") {
-                            popUpTo("home") { inclusive = false }
-                        }
-                    })
+                    onHome = { goToExplore() })
             } else {
                 Text("Loading...")
             }
