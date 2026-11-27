@@ -2,15 +2,20 @@
 OwnerScreens.kt
 
 Purpose: Forms for campsite owners: list a new campsite (anyone can, and becomes its owner),
-edit one of your campsites, and create a lottery for one. They are opened from the Explore
-screen ("List a campsite") and from the owner actions on a campsite's Details page, which
-pass the campsite to preselect.
+edit one of your campsites, and create a lottery for one or more of them. They are opened from
+the Explore screen ("List a campsite"), from Profile ("Create a lottery") and from the owner
+actions on a campsite's Details page, which pass the campsite to preselect.
  */
 
 package com.example.toastytraveltools.view
 
 import androidx.compose.material3.MaterialTheme
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -196,14 +201,23 @@ fun OwnerScreenCreateLottery(
     // reading the snapshot list here recomposes when the repository finishes loading
     val myCampsites = ownedCampsites(campsiteRepository.campsites, deviceId)
 
-    var campsiteId by remember { mutableStateOf(initialCampsiteId.orEmpty()) }
+    // ids of the campsites in this lottery; a lottery can cover several of the owner's campsites
+    val selectedCampsiteIds = remember {
+        mutableStateListOf<String>().apply {
+            initialCampsiteId?.takeIf { it.isNotBlank() }?.let { add(it) }
+        }
+    }
+    // an owner with a single campsite has nothing to choose, so select it once it has loaded
+    LaunchedEffect(myCampsites.size) {
+        if (myCampsites.size == 1 && selectedCampsiteIds.isEmpty()) {
+            selectedCampsiteIds.add(myCampsites.first().id)
+        }
+    }
     var registrationStart by remember { mutableStateOf("") }
     var registrationEnd by remember { mutableStateOf("") }
     var bookingStart by remember { mutableStateOf("") }
     var bookingEnd by remember { mutableStateOf("") }
     var numberOfWinners by remember { mutableStateOf("") }
-    
-    var expanded by remember { mutableStateOf(false) }
     
     var errorMessage by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
@@ -232,30 +246,49 @@ fun OwnerScreenCreateLottery(
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
             }
 
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded }
-            ) {
-                OutlinedTextField(
-                    value = if (campsiteId.isNotBlank()) { myCampsites.find { it.id == campsiteId }?.name ?: campsiteId } else { "" },
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Select Campsite *") },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor(type = ExposedDropdownMenuAnchorType.PrimaryEditable).fillMaxWidth()
+            Text(
+                text = if (myCampsites.size > 1) "Campsites in this lottery *" else "Campsite *",
+                style = MaterialTheme.typography.labelLarge
+            )
+            if (myCampsites.isEmpty()) {
+                Text(
+                    text = "List a campsite before creating a lottery.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
+            }
+            myCampsites.forEach { site ->
+                val checked = site.id in selectedCampsiteIds
+                val toggle = {
+                    if (checked) selectedCampsiteIds.remove(site.id) else selectedCampsiteIds.add(site.id)
+                }
+                // each campsite sits in its own small white card; text colours are fixed dark so
+                // they stay readable on white in dark theme too
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(MaterialTheme.shapes.small)
+                        .background(Color.White)
+                        .border(1.dp, Color.LightGray, MaterialTheme.shapes.small)
+                        .clickable { toggle() }
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    myCampsites.forEach { site ->
-                        DropdownMenuItem(
-                            text = { Text(site.name) },
-                            onClick = {
-                                campsiteId = site.id
-                                expanded = false
-                            }
+                    Checkbox(
+                        checked = checked,
+                        onCheckedChange = { toggle() },
+                        colors = CheckboxDefaults.colors(uncheckedColor = Color.DarkGray)
+                    )
+                    Column {
+                        Text(site.name, color = Color.Black)
+                        val guests = "Max ${site.occupancyLimit} " +
+                            if (site.occupancyLimit == 1) "guest" else "guests"
+                        Text(
+                            text = listOf(site.location, guests)
+                                .filter { it.isNotBlank() }
+                                .joinToString(" · "),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.DarkGray
                         )
                     }
                 }
@@ -300,8 +333,14 @@ fun OwnerScreenCreateLottery(
             Button(
                 shape = MaterialTheme.shapes.small,
                 onClick = {
-                    if (campsiteId.isBlank() || registrationStart.isBlank() || registrationEnd.isBlank() || bookingStart.isBlank() || bookingEnd.isBlank() || numberOfWinners.isBlank()) {
+                    if (registrationStart.isBlank() || registrationEnd.isBlank() || bookingStart.isBlank() || bookingEnd.isBlank() || numberOfWinners.isBlank()) {
                         errorMessage = "Please fill in all required fields."
+                        return@Button
+                    }
+                    // only the owner's own campsites can go in the lottery
+                    val chosenIds = selectedCampsiteIds.filter { id -> myCampsites.any { it.id == id } }
+                    if (chosenIds.isEmpty()) {
+                        errorMessage = "Select at least one campsite."
                         return@Button
                     }
                     
@@ -340,7 +379,7 @@ fun OwnerScreenCreateLottery(
                     isSaving = true
                     
                     val newLottery = Lottery(
-                        campsiteIds = listOf(campsiteId),
+                        campsiteIds = chosenIds,
                         ownerId = deviceId,
                         registrationStart = Timestamp(regStart),
                         registrationEnd = Timestamp(regEnd),
