@@ -16,6 +16,8 @@
  * Profile image management is not currently implemented.
  */
 package com.example.toastytraveltools.view
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -136,7 +138,7 @@ fun AdminImagesScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
             Text(
                 "Uploaded Campsite Images",
@@ -158,7 +160,7 @@ fun AdminImagesScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(photos, key = { "${it.campsite.id}|${it.url}" }) { photo ->
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Text(
                                     photo.campsite.name,
@@ -178,6 +180,7 @@ fun AdminImagesScreen(onBack: () -> Unit) {
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Button(
+                                    shape = MaterialTheme.shapes.small,
                                     onClick = { photoToRemove = photo },
                                     enabled = !isRemoving
                                 ) {
@@ -202,6 +205,7 @@ fun AdminImagesScreen(onBack: () -> Unit) {
             },
             confirmButton = {
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = { removeImage(photo) },
                     enabled = !isRemoving
                 ) {

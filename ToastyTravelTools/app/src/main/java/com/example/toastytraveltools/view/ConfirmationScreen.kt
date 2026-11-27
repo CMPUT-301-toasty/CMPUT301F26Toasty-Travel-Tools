@@ -46,17 +46,17 @@ fun ConfirmationScreen(reservation: Reservation, onHome: () -> Unit = {}) {
         }
     }
 
-    Column(Modifier.padding(64.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.padding(horizontal = 20.dp, vertical = 64.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Reservation Confirmed!", style = MaterialTheme.typography.headlineMedium)
         Text("Confirmation #: ${reservation.id}")
         Text("Campsite: ${reservation.campsiteName}")
         Text("Location: ${reservation.location}")
         Text("Dates: ${formatDate(reservation.startDate)} to ${formatDate(reservation.endDate)}")
         Text("Guests: ${reservation.guests}")
-        Button(onClick = { saveCsv.launch("reservation_${reservation.id}.csv") }) {
+        Button(shape = MaterialTheme.shapes.small, onClick = { saveCsv.launch("reservation_${reservation.id}.csv") }) {
             Text("Download CSV")
         }
-        Button(onClick = onHome) {
+        Button(shape = MaterialTheme.shapes.small, onClick = onHome) {
             Text("Home")
         }
     }

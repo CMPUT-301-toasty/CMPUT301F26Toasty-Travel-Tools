@@ -1,5 +1,9 @@
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.BorderStroke
+import com.example.toastytraveltools.view.components.ToastyBottomBar
+import com.example.toastytraveltools.view.components.ToastyNavItem
+
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +36,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -124,45 +127,11 @@ fun BottomButtons_OwnerBookings(
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedButton(
-            onClick = onOwnerScreenClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Sites", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = onLotteryClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Lotteries", maxLines = 1)
-        }
-        Button(
-            onClick = onBookingClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Bookings", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = { onProfileClick(deviceId) },
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Profile", maxLines = 1)
-        }
+    ToastyBottomBar {
+        ToastyNavItem(label = "Sites", selected = false, onClick = onOwnerScreenClick)
+        ToastyNavItem(label = "Lotteries", selected = false, onClick = onLotteryClick)
+        ToastyNavItem(label = "Bookings", selected = true, onClick = onBookingClick)
+        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
     }
 }
 
@@ -280,7 +249,7 @@ fun OwnerScreenBooking(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
@@ -293,13 +262,10 @@ fun OwnerScreenBooking(
                     onClick = { selectedTab = "active" },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    shape = RectangleShape,
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedTab == "active") {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.secondary
-                        }
+                        containerColor = if (selectedTab == "active") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (selectedTab == "active") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Text("Active")
@@ -309,13 +275,10 @@ fun OwnerScreenBooking(
                     onClick = { selectedTab = "past" },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    shape = RectangleShape,
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedTab == "past") {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.secondary
-                        }
+                        containerColor = if (selectedTab == "past") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (selectedTab == "past") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Text("Past")
@@ -325,13 +288,10 @@ fun OwnerScreenBooking(
                     onClick = { selectedTab = "canceled" },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    shape = RectangleShape,
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selectedTab == "canceled") {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.secondary
-                        }
+                        containerColor = if (selectedTab == "canceled") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (selectedTab == "canceled") MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Text("Canceled")
@@ -366,6 +326,7 @@ fun OwnerScreenBooking(
                 ) {
                     items(shown) { reservation ->
                         Card(
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(
@@ -418,7 +379,7 @@ fun OwnerScreenBooking(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp),
-                                    shape = RectangleShape
+                                    shape = MaterialTheme.shapes.small
                                 ) {
                                     Text("Message ${reservation.entrantName.ifBlank { "entrant" }}")
                                 }
@@ -432,7 +393,7 @@ fun OwnerScreenBooking(
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.error
                                         ),
-                                        shape = RectangleShape
+                                        shape = MaterialTheme.shapes.small
                                     ) {
                                         Text("Cancel Reservation")
                                     }

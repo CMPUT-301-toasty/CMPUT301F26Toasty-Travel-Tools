@@ -11,6 +11,9 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import com.example.toastytraveltools.view.components.ToastyBottomBar
+import com.example.toastytraveltools.view.components.ToastyNavItem
+
 import android.hardware.usb.UsbDevice.getDeviceId
 import android.provider.Settings
 import android.util.Patterns
@@ -47,8 +50,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -62,6 +63,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.google.firebase.storage.FirebaseStorage
@@ -271,38 +273,10 @@ fun BottomButtons_Profile(
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // filled button = the screen you're on
-        OutlinedButton(
-            onClick = onSearchClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Search", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = onReservationClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Reservation", maxLines = 1)
-        }
-        Button(
-            onClick = { onProfileClick(deviceId) },
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Profile", maxLines = 1)
-        }
+    ToastyBottomBar {
+        ToastyNavItem(label = "Search", selected = false, onClick = onSearchClick)
+        ToastyNavItem(label = "Reservation", selected = false, onClick = onReservationClick)
+        ToastyNavItem(label = "Profile", selected = true, onClick = { onProfileClick(deviceId) })
     }
 }
 /**
@@ -523,6 +497,7 @@ fun ProfileScreen(
                     }
 
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             isViewingPolicy = true
                         },
@@ -532,6 +507,7 @@ fun ProfileScreen(
                     }
 
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             name = current.name
                             email = current.email
@@ -550,6 +526,7 @@ fun ProfileScreen(
                     Spacer(Modifier.padding(8.dp))
 
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             deleteProfile(
                                 userId = userId,
@@ -598,6 +575,7 @@ fun ProfileScreen(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
+                            shape = MaterialTheme.shapes.small,
                             onClick = { isEditing = false },
                             enabled = !saving,
                             modifier = Modifier.weight(1f)
@@ -605,6 +583,7 @@ fun ProfileScreen(
                             Text("Cancel")
                         }
                         Button(
+                            shape = MaterialTheme.shapes.small,
                             onClick = {
                                 nameError = validateName(name)
                                 emailError = validateEmail(email)
@@ -649,7 +628,7 @@ fun ProfileScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
                 .clickable(enabled = true) {isViewingPolicy = false},
             contentAlignment = Alignment.Center
         ){
@@ -657,12 +636,16 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .fillMaxHeight(0.7f)
-                    .background(Color.White.copy()),
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.large)
+                    .padding(18.dp),
                 contentAlignment = Alignment.Center
             ){
                 Text(
                     text = "App Policy\n\n\nBe Respectful\n\nBe Kind\n\nTake Care of campsites\n\n\nWithin the app, you can join lotteries for a chance to be able to reserve a spot in a campsite. We aim to be fair to all contestants.\n Click anywhere to close this message",
-                    color = Color.Black
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

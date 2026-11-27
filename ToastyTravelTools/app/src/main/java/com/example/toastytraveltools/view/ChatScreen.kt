@@ -18,6 +18,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -108,7 +109,7 @@ fun ChatScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
         ) {
             LazyColumn(
                 state = listState,
@@ -133,15 +134,20 @@ fun ChatScreen(
                     ) {
                         Surface(
                             color = if (mine) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                            shape = RoundedCornerShape(12.dp),
+                            else MaterialTheme.colorScheme.surfaceContainerLowest,
+                            border = if (mine) null
+                            else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+                            // Figma bubbles: 14dp corners with a 4dp "tail" on the sender's side
+                            shape = if (mine) RoundedCornerShape(14.dp, 14.dp, 4.dp, 14.dp)
+                            else RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp),
                             modifier = Modifier.widthIn(max = 280.dp)
                         ) {
                             Text(
                                 text = message.text,
                                 color = if (mine) MaterialTheme.colorScheme.onPrimary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(10.dp)
+                                else MaterialTheme.colorScheme.onSurface,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(14.dp)
                             )
                         }
                     }
@@ -165,6 +171,7 @@ fun ChatScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         val to = receiverId
                         if (to != null) {

@@ -1,5 +1,6 @@
 package com.example.toastytraveltools.view
 
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -40,6 +41,7 @@ fun AdminDashboardScreen(navController: NavController) {
             Text("Manage your community")
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = { navController.navigate("admin_campsites") },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -47,6 +49,7 @@ fun AdminDashboardScreen(navController: NavController) {
             }
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = { navController.navigate("admin_profiles") },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -54,6 +57,7 @@ fun AdminDashboardScreen(navController: NavController) {
             }
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = { navController.navigate("admin_images") },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -61,6 +65,7 @@ fun AdminDashboardScreen(navController: NavController) {
             }
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = { navController.navigate("admin_reviews") },
                 modifier = Modifier.fillMaxWidth()
             )

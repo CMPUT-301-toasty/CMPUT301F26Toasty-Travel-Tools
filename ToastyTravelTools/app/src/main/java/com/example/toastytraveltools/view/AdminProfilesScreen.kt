@@ -1,5 +1,7 @@
 package com.example.toastytraveltools.view
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -221,7 +223,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
 
             if (selectedProfile == null) {
@@ -269,6 +271,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                             ) { profile ->
 
                                 Card(
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
@@ -290,6 +293,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                                         )
 
                                         Button(
+                                            shape = MaterialTheme.shapes.small,
                                             onClick = {
                                                 selectedProfile = profile
                                                 deleteError = null
@@ -324,6 +328,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         selectedProfile = null
                         deleteError = null
@@ -339,6 +344,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             deleteError = null
                             showDeleteConfirmation = true
