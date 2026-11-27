@@ -59,6 +59,14 @@ fun AdminDashboardScreen(navController: NavController) {
             ) {
                 Text("Uploaded Images")
             }
+
+            Button(
+                onClick = { navController.navigate("admin_reviews") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            {
+                Text("User Reviews")
+            }
         }
     }
 }
