@@ -1,5 +1,9 @@
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -221,7 +225,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
 
             if (selectedProfile == null) {
@@ -269,6 +273,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                             ) { profile ->
 
                                 Card(
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(
@@ -290,6 +295,7 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                                         )
 
                                         Button(
+                                            shape = MaterialTheme.shapes.small,
                                             onClick = {
                                                 selectedProfile = profile
                                                 deleteError = null
@@ -305,59 +311,66 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                 }
 
             } else {
-
-                val profile = selectedProfile!!
-
-                Text(
-                    text = "Profile Details",
-                    style = MaterialTheme.typography.headlineMedium
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Name: ${profile.name}")
-                Text("Email: ${profile.email}")
-                Text("Phone: ${profile.phone}")
-                Text("Role: ${profile.role}")
-                Text("Profile ID: ${profile.id}")
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedButton(
-                    onClick = {
-                        selectedProfile = null
-                        deleteError = null
-                    },
-                    enabled = !isDeleting
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Text("Back to profiles")
-                }
+                    val profile = selectedProfile!!
 
-                // Only Entrant profiles can be removed here.
-                if (profile.role.equals("entrant", ignoreCase = true)) {
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = {
-                            deleteError = null
-                            showDeleteConfirmation = true
-                        },
-                        enabled = !isDeleting,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Remove Profile")
-                    }
-                }
-
-                deleteError?.let {
                     Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error
+                        text = "Profile Details",
+                        style = MaterialTheme.typography.headlineMedium
                     )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text("Name: ${profile.name}")
+                    Text("Email: ${profile.email}")
+                    Text("Phone: ${profile.phone}")
+                    Text("Role: ${profile.role}")
+                    Text("Profile ID: ${profile.id}")
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = {
+                            selectedProfile = null
+                            deleteError = null
+                        },
+                        enabled = !isDeleting
+                    ) {
+                        Text("Back to profiles")
+                    }
+
+                    // Only Entrant profiles can be removed here.
+                    if (profile.role.equals("entrant", ignoreCase = true)) {
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            shape = MaterialTheme.shapes.small,
+                            onClick = {
+                                deleteError = null
+                                showDeleteConfirmation = true
+                            },
+                            enabled = !isDeleting,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Remove Profile")
+                        }
+                    }
+
+                    deleteError?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

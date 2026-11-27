@@ -11,7 +11,16 @@ Issues:
 
 package com.example.toastytraveltools.view
 
-import android.hardware.usb.UsbDevice.getDeviceId
+import com.example.toastytraveltools.view.components.ConfirmDestructiveDialog
+import com.example.toastytraveltools.view.components.MainTab
+import com.example.toastytraveltools.view.components.ToastyMainBottomBar
+import com.example.toastytraveltools.view.components.ToastyNavRow
+import com.example.toastytraveltools.view.components.ToastySectionLabel
+import com.example.toastytraveltools.model.Campsite
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+
 import android.provider.Settings
 import android.util.Patterns
 import androidx.compose.foundation.background
@@ -47,8 +56,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -62,6 +69,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 import com.google.firebase.storage.FirebaseStorage
@@ -255,57 +263,6 @@ fun deleteProfile(
 }
 
 /**
- * Displays the navigation buttons for the search, reservation,
- * and profile screens.
- *
- * @param onSearchClick Callback for opening the search screen.
- * @param onReservationClick Callback for opening reservations.
- * @param onProfileClick Callback for opening the profile using the device ID.
- */
-@Composable
-fun BottomButtons_Profile(
-    onSearchClick: () -> Unit,
-    onReservationClick: () -> Unit,
-    onProfileClick: (String) -> Unit
-) {
-    val context = LocalContext.current
-    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // filled button = the screen you're on
-        OutlinedButton(
-            onClick = onSearchClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Search", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = onReservationClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Reservation", maxLines = 1)
-        }
-        Button(
-            onClick = { onProfileClick(deviceId) },
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Profile", maxLines = 1)
-        }
-    }
-}
-/**
  * Displays the entrant's profile and allows editing of personal
  * information and notification preferences.
  *
@@ -314,6 +271,12 @@ fun BottomButtons_Profile(
  * @param onNavigateBack Callback for navigating back.
  * @param onReservationClick Callback for navigating to reservations.
  * @param onProfileClick Callback for profile navigation using a device ID.
+ * @param isAdmin Whether this device's role is "admin". Only then is the Admin entry shown.
+ * @param myCampsites Campsites this device owns, listed under "My campsites".
+ * @param onCampsiteClick Opens a campsite's Details page, where the owner actions are.
+ * @param onOwnerBookingsClick Opens bookings (and guest messages) for the owner's campsites.
+ * @param onAddCampsiteClick Opens the add-campsite form.
+ * @param onAdminClick Opens the admin dashboard.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -322,8 +285,15 @@ fun ProfileScreen(
     onSearchClick: () -> Unit = {},
     onNavigateBack: () -> Unit = {},
     onReservationClick: () -> Unit = {},
-    onProfileClick: (String) -> Unit = {}
+    onProfileClick: (String) -> Unit = {},
+    isAdmin: Boolean = false,
+    myCampsites: List<Campsite> = emptyList(),
+    onCampsiteClick: (String) -> Unit = {},
+    onOwnerBookingsClick: () -> Unit = {},
+    onAddCampsiteClick: () -> Unit = {},
+    onAdminClick: () -> Unit = {}
 ) {
+    var confirmDeleteProfile by remember { mutableStateOf(false) }
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var campsiteDeletionNotice by remember { mutableStateOf<String?>(null) }
@@ -385,19 +355,15 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Profile") },
-                navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
-                        Text("Back")
-                    }
-                }
+                title = { Text("Profile") }
             )
         },
         bottomBar = {
-            BottomButtons_Profile(
-                onSearchClick = onSearchClick,
-                onReservationClick = onReservationClick,
-                onProfileClick = onProfileClick
+            ToastyMainBottomBar(
+                selected = MainTab.Profile,
+                onExploreClick = onSearchClick,
+                onReservationsClick = onReservationClick,
+                onProfileClick = { onProfileClick(userId) }
             )
         }
     ){ innerpadding ->
@@ -405,11 +371,10 @@ fun ProfileScreen(
             modifier = Modifier
                 .padding(innerpadding)
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
-                .padding(top = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Profile", style = MaterialTheme.typography.headlineMedium)
             campsiteDeletionNotice?.let {
                 Text(
                     text = it,
@@ -523,6 +488,7 @@ fun ProfileScreen(
                     }
 
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             isViewingPolicy = true
                         },
@@ -532,6 +498,7 @@ fun ProfileScreen(
                     }
 
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             name = current.name
                             email = current.email
@@ -549,15 +516,11 @@ fun ProfileScreen(
 
                     Spacer(Modifier.padding(8.dp))
 
-                    Button(
-                        onClick = {
-                            deleteProfile(
-                                userId = userId,
-                                onDeleted = {
-                                    message = "Profile deleted"
-                                }
-                            )
-                        },
+                    OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = { confirmDeleteProfile = true },
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Delete Profile")
@@ -598,6 +561,7 @@ fun ProfileScreen(
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
+                            shape = MaterialTheme.shapes.small,
                             onClick = { isEditing = false },
                             enabled = !saving,
                             modifier = Modifier.weight(1f)
@@ -605,6 +569,7 @@ fun ProfileScreen(
                             Text("Cancel")
                         }
                         Button(
+                            shape = MaterialTheme.shapes.small,
                             onClick = {
                                 nameError = validateName(name)
                                 emailError = validateEmail(email)
@@ -643,13 +608,49 @@ fun ProfileScreen(
 
             }
             message?.let { Text(it) }
+
+            // Hosting: anyone who lists a campsite owns it and manages it from here
+            ProfileHostingSection(
+                myCampsites = myCampsites,
+                onCampsiteClick = onCampsiteClick,
+                onOwnerBookingsClick = onOwnerBookingsClick,
+                onAddCampsiteClick = onAddCampsiteClick
+            )
+
+            // Admin tools exist only for admin profiles; nobody else sees the entry
+            if (isAdmin) {
+                ToastySectionLabel("Admin")
+                ToastyNavRow(
+                    title = "Admin tools",
+                    subtitle = "Manage campsites, profiles, images and reviews",
+                    onClick = onAdminClick
+                )
+            }
         }
+    }
+
+    if (confirmDeleteProfile) {
+        ConfirmDestructiveDialog(
+            title = "Delete profile?",
+            message = "Your profile and photo will be removed. This cannot be undone.",
+            confirmLabel = "Delete profile",
+            onConfirm = {
+                confirmDeleteProfile = false
+                deleteProfile(
+                    userId = userId,
+                    onDeleted = {
+                        message = "Profile deleted"
+                    }
+                )
+            },
+            onDismiss = { confirmDeleteProfile = false }
+        )
     }
     if(isViewingPolicy == true){
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f))
                 .clickable(enabled = true) {isViewingPolicy = false},
             contentAlignment = Alignment.Center
         ){
@@ -657,16 +658,62 @@ fun ProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .fillMaxHeight(0.7f)
-                    .background(Color.White.copy()),
+                    .clip(MaterialTheme.shapes.large)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, MaterialTheme.shapes.large)
+                    .padding(18.dp),
                 contentAlignment = Alignment.Center
             ){
                 Text(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
                     text = "App Policy\n\n\nBe Respectful\n\nBe Kind\n\nTake Care of campsites\n\n\nWithin the app, you can join lotteries for a chance to be able to reserve a spot in a campsite. We aim to be fair to all contestants.\n Click anywhere to close this message",
-                    color = Color.Black
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
 
     }
 
+}
+
+/**
+ * "My campsites" plus the owner entries on Profile. Tapping a campsite opens its Details
+ * page, where Edit / Delete / Create lottery / View bookings live.
+ */
+@Composable
+fun ProfileHostingSection(
+    myCampsites: List<Campsite>,
+    onCampsiteClick: (String) -> Unit,
+    onOwnerBookingsClick: () -> Unit,
+    onAddCampsiteClick: () -> Unit
+) {
+    ToastySectionLabel("My campsites")
+    if (myCampsites.isEmpty()) {
+        Text(
+            text = "You haven't listed a campsite yet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    } else {
+        myCampsites.forEach { site ->
+            ToastyNavRow(
+                title = site.name,
+                subtitle = site.location.ifBlank { null },
+                onClick = { onCampsiteClick(site.id) }
+            )
+        }
+    }
+    OutlinedButton(
+        onClick = onAddCampsiteClick,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text("List a campsite")
+    }
+    ToastyNavRow(
+        title = "Bookings for my campsites",
+        subtitle = "See who's booked, cancel, and message your guests",
+        onClick = onOwnerBookingsClick
+    )
 }

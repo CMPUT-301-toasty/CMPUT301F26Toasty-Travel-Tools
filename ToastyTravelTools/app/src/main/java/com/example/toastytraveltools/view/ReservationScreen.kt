@@ -14,6 +14,10 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.BorderStroke
+import com.example.toastytraveltools.view.components.MainTab
+import com.example.toastytraveltools.view.components.ToastyMainBottomBar
+
 import android.provider.Settings
 import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
@@ -35,7 +39,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.unit.dp
 // imports added for the reservation list
 import androidx.compose.foundation.layout.fillMaxSize
@@ -128,49 +131,6 @@ fun cancelReservation(
         .addOnFailureListener { onError(it) }
 }
 
-@Composable
-fun BottomButtons_Reservation(
-    onSearchClick: () -> Unit,
-    onReservationClick: () -> Unit,
-    onProfileClick: (String) -> Unit
-) {
-    val context = LocalContext.current
-    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // filled button = the screen you're on
-        OutlinedButton(
-            onClick = onSearchClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Search", maxLines = 1)
-        }
-        Button(
-            onClick = onReservationClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Reservation", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = { onProfileClick(deviceId) },
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Profile", maxLines = 1)
-        }
-    }
-}
 @Composable
 fun ReservationScreen (
     onNavigateBack: () -> Unit = {},
@@ -513,12 +473,7 @@ fun ReservationScreen (
         topBar = {
             @OptIn(ExperimentalMaterial3Api::class)
             (TopAppBar(
-                title = { Text("Reservations") },
-                navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
-                        Text("Back")
-                    }
-                }
+                title = { Text("Reservations") }
             ))
         },
         bottomBar = {
@@ -535,7 +490,7 @@ fun ReservationScreen (
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RectangleShape
+                        shape = MaterialTheme.shapes.small
                     ) {
                         Text(
                             if (!datesLoaded) "Loading available dates..."
@@ -544,10 +499,11 @@ fun ReservationScreen (
                         )
                     }
                 }
-                BottomButtons_Reservation(
-                    onSearchClick = onSearchClick,
-                    onReservationClick = onReservationClick,
-                    onProfileClick = onProfileClick
+                ToastyMainBottomBar(
+                    selected = MainTab.Reservations,
+                    onExploreClick = onSearchClick,
+                    onReservationsClick = onReservationClick,
+                    onProfileClick = { onProfileClick(deviceId) }
                 )
             }
         }
@@ -557,7 +513,7 @@ fun ReservationScreen (
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
@@ -570,13 +526,10 @@ fun ReservationScreen (
                     onClick = { active_clicked = true },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    shape = RectangleShape,
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
-                        if (active_clicked) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.secondary
-                        }
+                        containerColor = if (active_clicked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (active_clicked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Text("Active")
@@ -586,13 +539,10 @@ fun ReservationScreen (
                     onClick = { active_clicked = false },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 4.dp),
-                    shape = RectangleShape,
+                    shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
-                        if (!active_clicked) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.secondary
-                        }
+                        containerColor = if (!active_clicked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = if (!active_clicked) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
                     Text("Past")
@@ -612,6 +562,7 @@ fun ReservationScreen (
                 ) {
                     items(shown) { reservation ->
                         Card(
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
@@ -634,7 +585,7 @@ fun ReservationScreen (
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp),
-                                    shape = RectangleShape
+                                    shape = MaterialTheme.shapes.small
                                 ) {
                                     Text("Message owner")
                                 }
@@ -645,7 +596,7 @@ fun ReservationScreen (
                                         colors = ButtonDefaults.buttonColors(
                                             containerColor = MaterialTheme.colorScheme.error
                                         ),
-                                        shape = RectangleShape
+                                        shape = MaterialTheme.shapes.small
                                     ) {
                                         Text("Cancel Reservation")
                                     }
@@ -685,7 +636,7 @@ fun ChooseCampsiteDialog(
                 }
                 items(campsites) { campsite ->
                     val available = hasAvailableDates(lottery, bookedDates[campsite.id] ?: listOf())
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text(
                                 text = campsite.name,
@@ -705,7 +656,7 @@ fun ChooseCampsiteDialog(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(top = 8.dp),
-                                    shape = RectangleShape
+                                    shape = MaterialTheme.shapes.small
                                 ) {
                                     Text("Choose dates")
                                 }

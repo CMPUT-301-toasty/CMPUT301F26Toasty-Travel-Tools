@@ -11,6 +11,7 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,7 +43,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -53,11 +53,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.PaddingValues
+import com.example.toastytraveltools.controller.CampsiteRepository
 import androidx.compose.material3.Slider
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.unit.sp
 import com.example.toastytraveltools.controller.MessageRepository
 import com.example.toastytraveltools.model.Campsite
 import com.example.toastytraveltools.model.Lottery
@@ -109,7 +110,12 @@ fun updateScore(campsite: Campsite){
 fun CampsiteDetailsScreen(
     campsiteId: String,
     onBack: () -> Unit,
-    onError: (Exception) -> Unit
+    onError: (Exception) -> Unit,
+    campsiteRepository: CampsiteRepository? = null,
+    onEditCampsite: (String) -> Unit = {},
+    onCreateLottery: (String) -> Unit = {},
+    onViewBookings: (String) -> Unit = {},
+    onCampsiteDeleted: () -> Unit = {}
 ) {
     Log.d("ReviewsDebug", "Flow0")
     var campsite by remember { mutableStateOf<Campsite?>(null)}
@@ -118,6 +124,8 @@ fun CampsiteDetailsScreen(
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     var reservations by remember { mutableStateOf(listOf<Reservation>()) }
     var campsiteRating by remember { mutableDoubleStateOf(0.0) }
+    var deleting by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(campsiteId) {
         Log.d("ReviewsDebug", "Flow1")
@@ -151,28 +159,31 @@ fun CampsiteDetailsScreen(
 
     }
     updateScore(snapshot_campsite) //ensure accurate rating before opening campsite
+    // Instagram-style ownership: the device that listed the campsite owns it
+    val isOwner = isCampsiteOwner(snapshot_campsite.ownerId, deviceId)
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // first we display the details
         // image, name, location, rating, max occupancy, description, address
-        Row(modifier = Modifier.padding(16.dp)){
-            Button(onClick = onBack) {
-                Text("Back")
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Text(
-                text = snapshot_campsite.name,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+        TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp)) {
+            Text("Back")
         }
+        Text(
+            text = snapshot_campsite.name,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.tertiary
+        )
+
+        Text(
+            text = snapshot_campsite.location,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         CampsiteImageCarousel(
             imageUrls = snapshot_campsite.imageUrls,
@@ -184,7 +195,7 @@ fun CampsiteDetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(220.dp)
-                            .clip(RoundedCornerShape(12.dp)),
+                            .clip(MaterialTheme.shapes.medium),
                         contentScale = ContentScale.Crop
                     )
                 } else {
@@ -192,7 +203,7 @@ fun CampsiteDetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(220.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(MaterialTheme.shapes.medium)
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
@@ -206,14 +217,9 @@ fun CampsiteDetailsScreen(
             }
         )
 
-        Text(
-            text = snapshot_campsite.location,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
 
         // rating and max guests side by side in a card
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -269,6 +275,7 @@ fun CampsiteDetailsScreen(
                     Log.d("ReviewsDebug2", "I don't have a review")
                     if (reviewing == false) {
                         OutlinedButton(
+                            shape = MaterialTheme.shapes.small,
                             onClick = { reviewing = true },
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -277,7 +284,7 @@ fun CampsiteDetailsScreen(
                         }
                     }
                     else{
-                        Card(modifier = Modifier.fillMaxWidth()) {
+                        Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -294,12 +301,13 @@ fun CampsiteDetailsScreen(
                                         valueRange = 0f..5f
                                     )
                                     val submitReview = rememberTextFieldState() //https://developer.android.com/develop/ui/compose/text/user-input#manage-tf-state
-                                    TextField(
+                                    OutlinedTextField(
                                         state = submitReview,
                                         modifier = Modifier.fillMaxWidth(),
                                         placeholder = { Text("Leave a review (Optional)") }
                                     )
                                     OutlinedButton(
+                                        shape = MaterialTheme.shapes.small,
                                         onClick =
                                             {
                                                 FirebaseFirestore.getInstance()
@@ -372,62 +380,94 @@ fun CampsiteDetailsScreen(
                 .addOnFailureListener { onError(it) }
 
         }
-        val snapshot_lottery = lottery
-        if(snapshot_lottery != null) {
-            if (snapshot_lottery.waitlist.contains(deviceId)) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "You have already joined this lottery",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = {
-                                FirebaseFirestore.getInstance()
-                                    .collection("lotteries")
-                                    .document(snapshot_lottery.id)
-                                    .update("waitlist", FieldValue.arrayRemove(deviceId))
-                                    .addOnSuccessListener {
-                                        // update the screen so the join button comes back
-                                        lottery =
-                                            snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist - deviceId)
-                                    }
-                                    .addOnFailureListener { onError(it) }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        {
-                            Text(text = "Leave")
+        CampsiteActionsSection(
+            isOwner = isOwner,
+            campsiteName = snapshot_campsite.name,
+            onEdit = { onEditCampsite(snapshot_campsite.id) },
+            onDeleteConfirmed = {
+                val repo = campsiteRepository
+                if (repo == null) {
+                    deleteError = "Could not delete campsite right now."
+                } else {
+                deleting = true
+                deleteError = null
+                repo.deleteCampsiteAndRelatedData(
+                    campsite = snapshot_campsite,
+                    onSuccess = {
+                        deleting = false
+                        onCampsiteDeleted()
+                    },
+                    onFailure = {
+                        deleting = false
+                        deleteError = "Could not delete campsite: ${it.message}"
+                    }
+                )
+                }
+            },
+            onCreateLottery = { onCreateLottery(snapshot_campsite.id) },
+            onViewBookings = { onViewBookings(snapshot_campsite.id) },
+            deleting = deleting,
+            deleteError = deleteError
+        ) {
+            val snapshot_lottery = lottery
+            if(snapshot_lottery != null) {
+                if (snapshot_lottery.waitlist.contains(deviceId)) {
+                    Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "You have already joined this lottery",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(
+                                shape = MaterialTheme.shapes.small,
+                                onClick = {
+                                    FirebaseFirestore.getInstance()
+                                        .collection("lotteries")
+                                        .document(snapshot_lottery.id)
+                                        .update("waitlist", FieldValue.arrayRemove(deviceId))
+                                        .addOnSuccessListener {
+                                            // update the screen so the join button comes back
+                                            lottery =
+                                                snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist - deviceId)
+                                        }
+                                        .addOnFailureListener { onError(it) }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            {
+                                Text(text = "Leave")
+                            }
                         }
+                    }
+                }
+                else {
+                    Button(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = {FirebaseFirestore.getInstance()
+                            .collection("lotteries")
+                            .document(snapshot_lottery.id)
+                            .update("waitlist", FieldValue.arrayUnion(deviceId))
+                            .addOnSuccessListener {
+                                lottery = snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist + deviceId)
+                            }
+                            .addOnFailureListener { onError(it) }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    {
+                        Text(text = "Join")
                     }
                 }
             }
             else {
-                Button(
-                    onClick = {FirebaseFirestore.getInstance()
-                        .collection("lotteries")
-                        .document(snapshot_lottery.id)
-                        .update("waitlist", FieldValue.arrayUnion(deviceId))
-                        .addOnSuccessListener {
-                            lottery = snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist + deviceId)
-                        }
-                        .addOnFailureListener { onError(it) }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                {
-                    Text(text = "Join")
+                Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "No Active Lottery",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
-            }
-        }
-        else {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "No Active Lottery",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp)
-                )
             }
         }
         Text(
@@ -474,7 +514,7 @@ fun CampsiteDetailsScreen(
                     }
                 }
             }
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                 if(reviewing == false) {
                     Row(
                         modifier = Modifier
@@ -485,17 +525,14 @@ fun CampsiteDetailsScreen(
                         Column {
                             Text(
                                 text = "Your Review",
-                                fontSize = 17.sp,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 18.dp, vertical = 5.dp)
                             )
                             Text(
                                 text = reviewScore.toString(),
-                                fontSize = 14.sp,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 18.dp, vertical = 5.dp)
@@ -503,8 +540,7 @@ fun CampsiteDetailsScreen(
                             if (reviewText != "N/A") {
                                 Text(
                                     text = reviewText,
-                                    fontSize = 14.sp,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 18.dp, vertical = 5.dp)
@@ -525,13 +561,14 @@ fun CampsiteDetailsScreen(
                             contentAlignment = Alignment.BottomEnd
                         ) {
                             Button(
+                                shape = MaterialTheme.shapes.small,
                                 onClick = { reviewing = true },
                                 modifier = Modifier
-                                    .height(30.dp)
+                                    .height(36.dp)
                             ) {
                                 Text(
                                     text = "Edit",
-                                    fontSize = 7.sp,
+                                    style = MaterialTheme.typography.labelMedium,
                                 )
                             }
                         }
@@ -556,12 +593,13 @@ fun CampsiteDetailsScreen(
                                 submitReview.edit{ append(reviewText) }
                                 pleaseDoOnce = true
                             }
-                            TextField(
+                            OutlinedTextField(
                                 state = submitReview,
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = { Text("Leave a review (Optional)") }
                             )
                             OutlinedButton(
+                                shape = MaterialTheme.shapes.small,
                                 onClick =
                                     {
                                         FirebaseFirestore.getInstance()
@@ -686,7 +724,7 @@ fun displayReviews (
     Log.d("ReviewsDebug", "${reservations}")
     for (r in otherReviews) {
         Log.d("ReviewsDebug", "reservation: ${r}")
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -757,8 +795,7 @@ fun reviewRow(reviewID: String?, rScore: Int, rOwner: String, rName: String = ""
 
     Text(
         text = reviewerName,
-        fontSize = 14.sp,
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 18.dp, vertical = 5.dp)
@@ -766,8 +803,7 @@ fun reviewRow(reviewID: String?, rScore: Int, rOwner: String, rName: String = ""
 
     Text(
         text = "$rScore/5", //replace this with stars if we use stars
-        fontSize = 14.sp,
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.bodyMedium,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 18.dp, vertical = 5.dp)
@@ -777,8 +813,7 @@ fun reviewRow(reviewID: String?, rScore: Int, rOwner: String, rName: String = ""
     if (reviewText.isNotBlank() && reviewText != "N/A") {
         Text(
             text = reviewText,
-            fontSize = 14.sp,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 18.dp, vertical = 5.dp)

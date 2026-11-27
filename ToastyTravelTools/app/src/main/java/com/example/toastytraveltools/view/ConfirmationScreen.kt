@@ -12,6 +12,9 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -46,17 +49,23 @@ fun ConfirmationScreen(reservation: Reservation, onHome: () -> Unit = {}) {
         }
     }
 
-    Column(Modifier.padding(64.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 64.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         Text("Reservation Confirmed!", style = MaterialTheme.typography.headlineMedium)
         Text("Confirmation #: ${reservation.id}")
         Text("Campsite: ${reservation.campsiteName}")
         Text("Location: ${reservation.location}")
         Text("Dates: ${formatDate(reservation.startDate)} to ${formatDate(reservation.endDate)}")
         Text("Guests: ${reservation.guests}")
-        Button(onClick = { saveCsv.launch("reservation_${reservation.id}.csv") }) {
+        Button(shape = MaterialTheme.shapes.small, onClick = { saveCsv.launch("reservation_${reservation.id}.csv") }) {
             Text("Download CSV")
         }
-        Button(onClick = onHome) {
+        Button(shape = MaterialTheme.shapes.small, onClick = onHome) {
             Text("Home")
         }
     }

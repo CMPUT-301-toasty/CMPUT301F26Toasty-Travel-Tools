@@ -14,6 +14,8 @@
  */
 package com.example.toastytraveltools.view
 
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.BorderStroke
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.model.Campsite
 import androidx.compose.foundation.layout.*
@@ -80,7 +82,7 @@ fun AdminCampsitesScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(20.dp)
         ) {
             Text(
                 text = "Registered Campsites",
@@ -129,6 +131,7 @@ fun AdminCampsitesScreen(
                         campsites.forEach { campsite ->
 
                             Card(
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(bottom = 12.dp)
@@ -152,6 +155,7 @@ fun AdminCampsitesScreen(
                                             Arrangement.spacedBy(8.dp)
                                     ) {
                                         Button(
+                                            shape = MaterialTheme.shapes.small,
                                             onClick = {
                                                 selectedCampsite = campsite
                                             }
@@ -160,6 +164,7 @@ fun AdminCampsitesScreen(
                                         }
 
                                         OutlinedButton(
+                                            shape = MaterialTheme.shapes.small,
                                             onClick = {
                                                 deleteError = null
                                                 deleteMessage = null
@@ -204,6 +209,7 @@ fun AdminCampsitesScreen(
                 Spacer(Modifier.height(20.dp))
 
                 OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         selectedCampsite = null
                     }
@@ -214,6 +220,7 @@ fun AdminCampsitesScreen(
                 Spacer(Modifier.height(8.dp))
 
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         deleteError = null
                         deleteMessage = null
@@ -267,6 +274,7 @@ fun AdminCampsitesScreen(
 
             confirmButton = {
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     enabled = !isDeleting,
                     onClick = {
                         isDeleting = true
@@ -305,6 +313,7 @@ fun AdminCampsitesScreen(
 
             dismissButton = {
                 OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
                     enabled = !isDeleting,
                     onClick = {
                         campsiteToDelete = null

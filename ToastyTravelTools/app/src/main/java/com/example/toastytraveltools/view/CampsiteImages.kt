@@ -66,7 +66,7 @@ fun CampsiteThumbnail(
     modifier: Modifier = Modifier,
     size: Dp = 84.dp
 ) {
-    val shape = RoundedCornerShape(10.dp)
+    val shape = MaterialTheme.shapes.small
     if (imageUrl.isNullOrBlank()) {
         Box(
             modifier = modifier
@@ -121,7 +121,7 @@ fun CampsiteImageCarousel(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(height)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(MaterialTheme.shapes.medium)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
@@ -191,7 +191,7 @@ private fun NoPhotosPlaceholder(height: Dp) {
         modifier = Modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(MaterialTheme.shapes.medium)
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center
     ) {
@@ -291,6 +291,7 @@ fun CampsiteImagePicker(
                 style = MaterialTheme.typography.titleSmall
             )
             OutlinedButton(
+                shape = MaterialTheme.shapes.small,
                 onClick = {
                     launcher.launch(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -344,7 +345,7 @@ private fun RemovableThumbnail(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(10.dp))
+                .clip(MaterialTheme.shapes.small)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         )
         if (label != null) {
