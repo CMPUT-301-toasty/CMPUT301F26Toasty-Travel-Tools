@@ -38,7 +38,7 @@ data class Reservation (
     val campsiteName: String = "",
     val location: String = "",
     val entrantName: String = "",
-    val entrantId: String = "",
+    val entrant_id: String = "",
     val startDate: Timestamp = Timestamp(0, 0),
     val endDate: Timestamp = Timestamp(0, 0),
     val guests: Int = 0,
