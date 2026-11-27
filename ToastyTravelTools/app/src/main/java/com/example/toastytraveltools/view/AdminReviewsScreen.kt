@@ -1,5 +1,6 @@
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -112,14 +113,14 @@ fun AdminReviewsScreen(
                 text = "No reviews yet",
                 modifier = Modifier
                     .padding(innerPadding)
-                    .padding(16.dp)
+                    .padding(20.dp)
             )
         } else {
             LazyColumn(
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 errorMessage?.let {
@@ -130,7 +131,7 @@ fun AdminReviewsScreen(
                     val reviewText = rememberReviewText(review.reviewMessage)
                     val hasText = reviewText.isNotBlank() && reviewText != "N/A"
 
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -173,6 +174,7 @@ fun AdminReviewsScreen(
                             ) {
                                 if (review.reviewScore != null) {
                                     OutlinedButton(
+                                        shape = MaterialTheme.shapes.small,
                                         onClick = { pendingRemoval = review to "rating" },
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.outlinedButtonColors(
@@ -184,6 +186,7 @@ fun AdminReviewsScreen(
                                 }
                                 if (hasText) {
                                     OutlinedButton(
+                                        shape = MaterialTheme.shapes.small,
                                         onClick = { pendingRemoval = review to "review" },
                                         modifier = Modifier.weight(1f),
                                         colors = ButtonDefaults.outlinedButtonColors(

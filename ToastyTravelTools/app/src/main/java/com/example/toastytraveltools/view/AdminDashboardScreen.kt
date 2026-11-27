@@ -65,6 +65,7 @@ fun AdminDashboardScreen(navController: NavController) {
             }
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = { navController.navigate("admin_reviews") },
                 modifier = Modifier.fillMaxWidth()
             )
