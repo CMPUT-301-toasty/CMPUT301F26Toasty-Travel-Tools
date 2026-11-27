@@ -363,7 +363,10 @@ fun CampsiteDetailsScreen(
                 .addOnSuccessListener { snapshot ->
                     val now = Timestamp.now()
                     var activeLottery: Lottery? = null
-                    for (l in snapshot.toObjects(Lottery::class.java)) {
+                    for (document in snapshot.documents) {
+                        val l = document.toObject(Lottery::class.java)
+                            ?.apply { id = document.id }
+                            ?: continue
                         val start = l.registrationStart
                         val end = l.registrationEnd
                         if (start == null || end == null) {
