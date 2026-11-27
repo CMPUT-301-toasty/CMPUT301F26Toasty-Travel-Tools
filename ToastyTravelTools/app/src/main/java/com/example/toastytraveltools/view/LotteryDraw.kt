@@ -152,7 +152,7 @@ fun claimLotterySpot(
         // the reservations other winners already made, read from the "reservations" collection
         // so a reservation that was cancelled doesn't block those dates anymore
         val otherReservations = lottery.reservations
-            .filter { it.entrantId != entrantId }
+            .filter { it.entrant_id != entrantId }
             .mapNotNull { r ->
                 tx.get(db.collection("reservations").document(r.id))
                     .toObject(Reservation::class.java)
@@ -161,7 +161,7 @@ fun claimLotterySpot(
         check(entrantId in lottery.winners) { "Only lottery winners can claim a spot" }
 
         // one reservation per winner
-        check(lottery.reservations.none { it.entrantId == entrantId }) {
+        check(lottery.reservations.none { it.entrant_id == entrantId }) {
             "You have already claimed your spot"
         }
 
@@ -206,7 +206,7 @@ fun claimLotterySpot(
             campsiteName = campsite.name,
             location = campsite.location,
             entrantName = entrant?.name ?: "",
-            entrantId = entrantId,
+            entrant_id = entrantId,
             startDate = Timestamp(Date(startMillis)),
             endDate = Timestamp(Date(endMillis)),
             guests = guests
@@ -277,7 +277,7 @@ fun loadClaimableLotteries(
             onResult(
                 snapshot.toObjects(Lottery::class.java).filter { lottery ->
                     lottery.spotsRemaining > 0 &&
-                            lottery.reservations.none { it.entrantId == entrantId } &&
+                            lottery.reservations.none { it.entrant_id == entrantId } &&
                             entrantId !in lottery.declinedWinners &&
                             entrantId !in lottery.cancelledWinners
                 }
@@ -302,7 +302,7 @@ fun declineLotterySpot(
             ?: error("Lottery not found")
 
         check(entrantId in lottery.winners) { "Only lottery winners can decline a reservation" }
-        check(lottery.reservations.none { it.entrantId == entrantId }) {
+        check(lottery.reservations.none { it.entrant_id == entrantId }) {
             "You have already reserved your spot, cancel it from your reservations instead"
         }
         check(entrantId !in lottery.declinedWinners) { "You have already declined this reservation" }

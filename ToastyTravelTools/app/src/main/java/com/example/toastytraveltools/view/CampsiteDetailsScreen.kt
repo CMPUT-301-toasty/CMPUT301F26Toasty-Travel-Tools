@@ -264,6 +264,7 @@ fun CampsiteDetailsScreen(
         for (r in reservations) {
             if (r.campsiteName == snapshot_campsite.name && r.endDate < now) {
                 if (r.reviewScore == null) {
+                    Log.d("ReviewsDebug2", "I don't have a review")
                     if (reviewing == false) {
                         OutlinedButton(
                             shape = MaterialTheme.shapes.small,
@@ -336,6 +337,7 @@ fun CampsiteDetailsScreen(
                         }
                     }
                 } else {
+                    Log.d("ReviewsDebug2", "Has review is true")
                     hasReview = true
                 }
             }
@@ -435,6 +437,7 @@ fun CampsiteDetailsScreen(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
+        Log.d("ReviewsDebug2", "Do i have a review?")
         //Your review is shown above other reviews
         var reviewScore by remember { mutableIntStateOf(0) }
         var reviewText by remember { mutableStateOf("N/A")}
@@ -442,6 +445,7 @@ fun CampsiteDetailsScreen(
         var reservationId by remember { mutableStateOf("")}
         var pleaseDoOnce by remember { mutableStateOf<Boolean>(false)}
         if(hasReview) {
+            Log.d("ReviewsDebug2", "Yeah I do")
             LaunchedEffect(Unit) {
                 loadReservations( //refresh reviews just in case
                     entrantId = deviceId,
@@ -668,7 +672,7 @@ fun displayReviews (
     }
     // reviews from everyone else, a score on its own still counts as a review
     val otherReviews = reservations.filter {
-        it.entrantId != entrantId && (it.reviewScore != null || !it.reviewMessage.isNullOrBlank())
+        it.entrant_id != entrantId && (it.reviewScore != null || !it.reviewMessage.isNullOrBlank())
     }
     if(otherReviews.isEmpty()) {
         Text(
@@ -690,7 +694,7 @@ fun displayReviews (
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    reviewRow(r.reviewMessage, r.reviewScore ?: 0, r.entrantId, r.entrantName)
+                    reviewRow(r.reviewMessage, r.reviewScore ?: 0, r.entrant_id, r.entrantName)
                 }
             }
         }

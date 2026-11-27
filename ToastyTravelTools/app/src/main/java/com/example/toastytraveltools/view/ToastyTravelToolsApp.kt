@@ -204,6 +204,15 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
             )
         }
 
+        composable("admin_reviews") {
+            AdminReviewsScreen(
+                reservationRepository = reservationRepository,
+                onBack = {
+                    navController.navigate("admin")
+                }
+            )
+        }
+
         // Search screen
         composable("search") {
             SearchScreen(

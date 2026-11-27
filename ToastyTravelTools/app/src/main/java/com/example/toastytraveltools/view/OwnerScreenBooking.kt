@@ -99,7 +99,7 @@ fun loadOwnerReservations(
                                 campsiteName = campsiteName,
                                 location = doc.getString("location") ?: "",
                                 entrantName = doc.getString("entrantName") ?: doc.getString("entrant_name") ?: "",
-                                entrantId = entrantId,
+                                entrant_id = entrantId,
                                 startDate = doc.get("startDate").asReservationTimestamp(),
                                 endDate = doc.get("endDate").asReservationTimestamp(),
                                 guests = (doc.get("guests") as? Number)?.toInt() ?: 0,

@@ -16,9 +16,11 @@ import com.example.toastytraveltools.model.Reservation
 import com.google.firebase.Firebase
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.firestore
+import com.google.firebase.firestore.FieldValue
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.example.toastytraveltools.view.isMessageId
 
 
 /**
@@ -90,7 +92,7 @@ class ReservationRepository {
                         id = document.id,
                         campsiteName = document.getString("campsiteName") ?: "",
                         location = document.getString("location") ?: "",
-                        entrantId = document.getString("entrant_id")
+                        entrant_id = document.getString("entrant_id")
                             ?: document.getString("entrantId")
                             ?: "",
                         startDate = document.get("startDate")
@@ -98,6 +100,8 @@ class ReservationRepository {
                         endDate = document.get("endDate")
                             .asReservationTimestamp(),
                         guests = (document.get("guests") as? Number)?.toInt() ?: 0,
+                        reviewScore = (document.get("reviewScore") as? Number)?.toInt(),
+                        reviewMessage = document.getString("reviewMessage"),
                         status = document.getString("status") ?: document.getString("Status") ?: "active"
                     )
 
@@ -132,6 +136,64 @@ class ReservationRepository {
         documentRef.set(newReservation)
             .addOnSuccessListener {
                 onSaved(documentRef.id)
+            }
+    }
+
+    /**
+     * Removes the rating (score) from a review and recalculates the
+     * campsite's average rating. The written review is kept.
+     */
+    fun removeRating(
+        reservation: Reservation,
+        onDone: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        reservationsRef.document(reservation.id)
+            .update("reviewScore", FieldValue.delete())
+            .addOnSuccessListener {
+                recalculateRating(reservation.campsiteName, removedReservationId = reservation.id)
+                onDone()
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    /**
+     * Removes the written review: deletes its "messages" document (if it has one)
+     * and clears the reservation's link to it. The rating is kept.
+     */
+    fun removeReview(
+        reservation: Reservation,
+        onDone: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        val saved = reservation.reviewMessage ?: ""
+        if (isMessageId(saved)) {
+            // deleting an id that doesn't exist (older text reviews) does nothing
+            db.collection("messages").document(saved).delete()
+        }
+        reservationsRef.document(reservation.id)
+            .update("reviewMessage", FieldValue.delete())
+            .addOnSuccessListener { onDone() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    /**
+     * Recalculates a campsite's average rating from the remaining scores
+     * and saves it to the campsite document.
+     */
+    private fun recalculateRating(campsiteName: String, removedReservationId: String) {
+        // Skip the removed one in case the live list hasn't updated yet
+        val scores = _reservations
+            .filter { it.campsiteName == campsiteName && it.id != removedReservationId }
+            .mapNotNull { it.reviewScore }
+
+        val average = if (scores.isEmpty()) 0.0 else scores.average()
+
+        db.collection("campsites")
+            .whereEqualTo("name", campsiteName)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                snapshot.documents.forEach { it.reference.update("rating", average) }
             }
     }
 }
