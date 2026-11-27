@@ -12,6 +12,10 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.material3.MaterialTheme
+import com.example.toastytraveltools.view.components.ToastyBottomBar
+import com.example.toastytraveltools.view.components.ToastyNavItem
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,7 +29,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import android.provider.Settings
 import android.net.Uri
-import androidx.compose.ui.graphics.RectangleShape
 import com.example.toastytraveltools.controller.CampsiteRepository
 import com.example.toastytraveltools.controller.LotteryRepository
 import com.example.toastytraveltools.model.Campsite
@@ -45,46 +48,11 @@ fun BottomButtons_Owner(
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Button(
-            onClick = onOwnerScreenClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Sites", maxLines = 1)
-        }
-        // filled button = the screen you're on
-        OutlinedButton(
-            onClick = onLotteryClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Lotteries", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = onBookingClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Bookings", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = { onProfileClick(deviceId) },
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Profile", maxLines = 1)
-        }
+    ToastyBottomBar {
+        ToastyNavItem(label = "Sites", selected = true, onClick = onOwnerScreenClick)
+        ToastyNavItem(label = "Lotteries", selected = false, onClick = onLotteryClick)
+        ToastyNavItem(label = "Bookings", selected = false, onClick = onBookingClick)
+        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
     }
 }
 
@@ -126,35 +94,38 @@ fun OwnerHomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(32.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = onNavigateToAddCampsite,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(48.dp)
             ) {
                 Text("Add New Campsite")
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = onNavigateToCreateLottery,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(48.dp)
             ) {
                 Text("Create Lottery")
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = onNavigateToEditCampsite,
-                modifier = Modifier.fillMaxWidth().height(56.dp)
+                modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Text("Edit Campsites")
             }
@@ -195,7 +166,7 @@ fun OwnerScreenAddCampsite(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -249,6 +220,7 @@ fun OwnerScreenAddCampsite(
             )
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = {
                     if (name.isBlank() || location.isBlank() || description.isBlank() || occupancy.isBlank()) {
                         errorMessage = "Please fill in all required fields."
@@ -353,7 +325,7 @@ fun OwnerScreenCreateLottery(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -427,6 +399,7 @@ fun OwnerScreenCreateLottery(
             )
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = {
                     if (campsiteId.isBlank() || registrationStart.isBlank() || registrationEnd.isBlank() || bookingStart.isBlank() || bookingEnd.isBlank() || numberOfWinners.isBlank()) {
                         errorMessage = "Please fill in all required fields."
@@ -558,7 +531,7 @@ fun OwnerScreenEditCampsite(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp)
+                .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -647,6 +620,7 @@ fun OwnerScreenEditCampsite(
                 )
 
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         if (name.isBlank() || location.isBlank() || description.isBlank() || occupancy.isBlank()) {
                             errorMessage = "Please fill in all required fields."

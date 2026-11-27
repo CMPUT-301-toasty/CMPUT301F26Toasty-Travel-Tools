@@ -11,6 +11,7 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.material3.MaterialTheme
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -146,6 +147,7 @@ fun HomeScreen(
 
             confirmButton = {
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
 
                         nameError = validateName(name)
@@ -197,42 +199,46 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(32.dp),
+                .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = "Toasty Travel Tools",
                 style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.padding(bottom = 48.dp)
             )
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = onNavigateToUser,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(48.dp)
             ) {
                 Text("User Mode")
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = onNavigateToOwner,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(48.dp)
             ) {
                 Text("Owner Mode")
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Button(
+                shape = MaterialTheme.shapes.small,
                 onClick = onNavigateToAdmin,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
+                    .height(48.dp)
             ) {
                 Text("Admin Mode")
             }

@@ -11,6 +11,10 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.BorderStroke
+import com.example.toastytraveltools.view.components.ToastyBottomBar
+import com.example.toastytraveltools.view.components.ToastyNavItem
+
 import android.provider.Settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +47,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
@@ -52,7 +55,6 @@ import android.util.Log
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Scaffold
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TextButton
@@ -242,6 +244,7 @@ fun CampsiteRow(
     onClick: ()-> Unit
 ) {
     Card(
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
@@ -267,7 +270,7 @@ fun CampsiteRow(
                         Text(
                             text = "+${campsite.imageUrls.size - 1}",
                             color = Color.White,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                         )
                     }
@@ -277,30 +280,34 @@ fun CampsiteRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = campsite.name,
-                    fontSize = 18.sp,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.tertiary,
                 )
 
                 Text(
                     text = campsite.location,
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 if (campsite.tags.isNotEmpty()) {
                     Text(
                         text = "Tags: ${campsite.tags.joinToString(", ")}",
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.secondary
                     )
                 }
 
                 Text(
                     text = "Guests Limit: ${campsite.occupancyLimit}",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
 
                 Text(
                     text = "Rating: ${campsite.rating}",
-                    fontSize = 14.sp,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
@@ -317,38 +324,10 @@ fun BottomButtons_Search(
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        // filled button = the screen you're on
-        Button(
-            onClick = onSearchClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Search", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = onReservationClick,
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Reservation", maxLines = 1)
-        }
-        OutlinedButton(
-            onClick = { onProfileClick(deviceId) },
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 4.dp),
-            shape = RectangleShape
-        ) {
-            Text("Profile", maxLines = 1)
-        }
+    ToastyBottomBar {
+        ToastyNavItem(label = "Search", selected = true, onClick = onSearchClick)
+        ToastyNavItem(label = "Reservation", selected = false, onClick = onReservationClick)
+        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
     }
 }
 
@@ -398,7 +377,7 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
                 .padding(top = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -406,7 +385,7 @@ fun SearchScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (!searchClicked) {
-                Button(onClick = { searchClicked = true }) {
+                Button(shape = MaterialTheme.shapes.small, onClick = { searchClicked = true }) {
                     Text("Search")
                 }
             } else {
@@ -424,6 +403,7 @@ fun SearchScreen(
                         modifier = Modifier.weight(1f)
                     )
                     Button(
+                        shape = MaterialTheme.shapes.small,
                         onClick = {
                             if (search.isNotBlank()) {
                                 searchCampsite(
@@ -447,6 +427,7 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
                     onClick = { filter = !filter },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -460,7 +441,7 @@ fun SearchScreen(
                 // filter options
                 if (filter) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Card(modifier = Modifier.fillMaxWidth()) {
+                    Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
                         Column(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -507,6 +488,7 @@ fun SearchScreen(
                             }
                             
                             Button(
+                                shape = MaterialTheme.shapes.small,
                                 onClick = {
                                     if (filter_my_campsites) {
                                         // if checkbox is ticked, only filter on my campsites (bypassing the other filters for simplicity based on prompt)
