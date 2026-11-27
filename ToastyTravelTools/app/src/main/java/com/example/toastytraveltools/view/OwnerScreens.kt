@@ -1,20 +1,15 @@
 /*
-OwnersScreens.kt
+OwnerScreens.kt
 
-Purpose: This is the start screen for the owner mode. It allows the owner add new campsites,
-create lotteries, and edit campsites.
-
-Issues:
- - add new campsite, create lottery, and edit campsites could have better navigation as you have to
- press "back" if you want to view all the options
- - instead maybe have a bottom bar to allow for better navigation
+Purpose: Forms for campsite owners: list a new campsite (anyone can, and becomes its owner),
+edit one of your campsites, and create a lottery for one. They are opened from the Explore
+screen ("List a campsite") and from the owner actions on a campsite's Details page, which
+pass the campsite to preselect.
  */
 
 package com.example.toastytraveltools.view
 
 import androidx.compose.material3.MaterialTheme
-import com.example.toastytraveltools.view.components.ToastyBottomBar
-import com.example.toastytraveltools.view.components.ToastyNavItem
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -37,101 +32,6 @@ import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-
-@Composable
-fun BottomButtons_Owner(
-    onOwnerScreenClick: () -> Unit,
-    onLotteryClick: () -> Unit,
-    onBookingClick: () -> Unit,
-    onProfileClick: (String) -> Unit
-) {
-    val context = LocalContext.current
-    val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-
-    ToastyBottomBar {
-        ToastyNavItem(label = "Sites", selected = true, onClick = onOwnerScreenClick)
-        ToastyNavItem(label = "Lotteries", selected = false, onClick = onLotteryClick)
-        ToastyNavItem(label = "Bookings", selected = false, onClick = onBookingClick)
-        ToastyNavItem(label = "Profile", selected = false, onClick = { onProfileClick(deviceId) })
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun OwnerHomeScreen(
-    onNavigateToAddCampsite: () -> Unit,
-    onNavigateToCreateLottery: () -> Unit,
-    onNavigateToEditCampsite: () -> Unit,
-    onNavigateBack: () -> Unit,
-    onOwnerScreenClick: () -> Unit,
-    onBookingClick: () -> Unit,
-    onLotteryClick: () -> Unit,
-    onProfileClick: (String) -> Unit
-) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Owner Dashboard") },
-                navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
-                        Text("Back")
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Column {
-                BottomButtons_Owner(
-                    onOwnerScreenClick = onOwnerScreenClick,
-                    onBookingClick = onBookingClick,
-                    onLotteryClick = onLotteryClick,
-                    onProfileClick = onProfileClick
-                )
-            }
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Button(
-                shape = MaterialTheme.shapes.small,
-                onClick = onNavigateToAddCampsite,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Text("Add New Campsite")
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Button(
-                shape = MaterialTheme.shapes.small,
-                onClick = onNavigateToCreateLottery,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Text("Create Lottery")
-            }
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            Button(
-                shape = MaterialTheme.shapes.small,
-                onClick = onNavigateToEditCampsite,
-                modifier = Modifier.fillMaxWidth().height(48.dp)
-            ) {
-                Text("Edit Campsites")
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -168,7 +68,7 @@ fun OwnerScreenAddCampsite(
                 .padding(innerPadding)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (errorMessage.isNotEmpty()) {
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -286,18 +186,17 @@ fun OwnerScreenAddCampsite(
 fun OwnerScreenCreateLottery(
     lotteryRepository: LotteryRepository,
     campsiteRepository: CampsiteRepository,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    initialCampsiteId: String? = null
 ) {
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     
     // Get all campsites and filter by this owner
-    val allCampsites = campsiteRepository.campsites
-    val myCampsites = remember(allCampsites) {
-        allCampsites.filter { it.ownerId == deviceId }
-    }
+    // reading the snapshot list here recomposes when the repository finishes loading
+    val myCampsites = ownedCampsites(campsiteRepository.campsites, deviceId)
 
-    var campsiteId by remember { mutableStateOf("") }
+    var campsiteId by remember { mutableStateOf(initialCampsiteId.orEmpty()) }
     var registrationStart by remember { mutableStateOf("") }
     var registrationEnd by remember { mutableStateOf("") }
     var bookingStart by remember { mutableStateOf("") }
@@ -327,7 +226,7 @@ fun OwnerScreenCreateLottery(
                 .padding(innerPadding)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (errorMessage.isNotEmpty()) {
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
@@ -472,18 +371,17 @@ fun OwnerScreenCreateLottery(
 @Composable
 fun OwnerScreenEditCampsite(
     repository: CampsiteRepository,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    initialCampsiteId: String? = null
 ) {
     val context = LocalContext.current
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     
     // Get all campsites and filter by this owner
-    val allCampsites = repository.campsites
-    val myCampsites = remember(allCampsites) {
-        allCampsites.filter { it.ownerId == deviceId }
-    }
+    // reading the snapshot list here recomposes when the repository finishes loading
+    val myCampsites = ownedCampsites(repository.campsites, deviceId)
 
-    var selectedCampsiteId by remember { mutableStateOf("") }
+    var selectedCampsiteId by remember { mutableStateOf(initialCampsiteId.orEmpty()) }
     var expanded by remember { mutableStateOf(false) }
 
     var name by remember { mutableStateOf("") }
@@ -498,10 +396,14 @@ fun OwnerScreenEditCampsite(
     var errorMessage by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
 
-    // when selection changes, populate the fields
-    LaunchedEffect(selectedCampsiteId) {
-        val site = myCampsites.find { it.id == selectedCampsiteId }
-        if (site != null) {
+    // when selection changes, populate the fields. The repository loads asynchronously, so a
+    // preselected campsite may only appear in myCampsites later; fill the fields once it does.
+    var populatedFor by remember { mutableStateOf<String?>(null) }
+    val selectedSite = myCampsites.find { it.id == selectedCampsiteId }
+    LaunchedEffect(selectedCampsiteId, selectedSite != null) {
+        val site = selectedSite
+        if (site != null && populatedFor != site.id) {
+            populatedFor = site.id
             name = site.name
             location = site.location
             description = site.description
@@ -533,7 +435,7 @@ fun OwnerScreenEditCampsite(
                 .padding(innerPadding)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (errorMessage.isNotEmpty()) {
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)

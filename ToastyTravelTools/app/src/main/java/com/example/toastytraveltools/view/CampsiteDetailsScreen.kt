@@ -53,6 +53,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.PaddingValues
+import com.example.toastytraveltools.controller.CampsiteRepository
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -107,7 +110,12 @@ fun updateScore(campsite: Campsite){
 fun CampsiteDetailsScreen(
     campsiteId: String,
     onBack: () -> Unit,
-    onError: (Exception) -> Unit
+    onError: (Exception) -> Unit,
+    campsiteRepository: CampsiteRepository? = null,
+    onEditCampsite: (String) -> Unit = {},
+    onCreateLottery: (String) -> Unit = {},
+    onViewBookings: (String) -> Unit = {},
+    onCampsiteDeleted: () -> Unit = {}
 ) {
     Log.d("ReviewsDebug", "Flow0")
     var campsite by remember { mutableStateOf<Campsite?>(null)}
@@ -116,6 +124,8 @@ fun CampsiteDetailsScreen(
     val deviceId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
     var reservations by remember { mutableStateOf(listOf<Reservation>()) }
     var campsiteRating by remember { mutableDoubleStateOf(0.0) }
+    var deleting by remember { mutableStateOf(false) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(campsiteId) {
         Log.d("ReviewsDebug", "Flow1")
@@ -149,6 +159,8 @@ fun CampsiteDetailsScreen(
 
     }
     updateScore(snapshot_campsite) //ensure accurate rating before opening campsite
+    // Instagram-style ownership: the device that listed the campsite owns it
+    val isOwner = isCampsiteOwner(snapshot_campsite.ownerId, deviceId)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -158,19 +170,20 @@ fun CampsiteDetailsScreen(
     ) {
         // first we display the details
         // image, name, location, rating, max occupancy, description, address
-        Row(modifier = Modifier.padding(16.dp)){
-            Button(shape = MaterialTheme.shapes.small, onClick = onBack) {
-                Text("Back")
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Text(
-                text = snapshot_campsite.name,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
+        TextButton(onClick = onBack, contentPadding = PaddingValues(0.dp)) {
+            Text("Back")
         }
+        Text(
+            text = snapshot_campsite.name,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.tertiary
+        )
+
+        Text(
+            text = snapshot_campsite.location,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
 
         CampsiteImageCarousel(
             imageUrls = snapshot_campsite.imageUrls,
@@ -204,11 +217,6 @@ fun CampsiteDetailsScreen(
             }
         )
 
-        Text(
-            text = snapshot_campsite.location,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
 
         // rating and max guests side by side in a card
         Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
@@ -372,64 +380,94 @@ fun CampsiteDetailsScreen(
                 .addOnFailureListener { onError(it) }
 
         }
-        val snapshot_lottery = lottery
-        if(snapshot_lottery != null) {
-            if (snapshot_lottery.waitlist.contains(deviceId)) {
-                Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = "You have already joined this lottery",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            shape = MaterialTheme.shapes.small,
-                            onClick = {
-                                FirebaseFirestore.getInstance()
-                                    .collection("lotteries")
-                                    .document(snapshot_lottery.id)
-                                    .update("waitlist", FieldValue.arrayRemove(deviceId))
-                                    .addOnSuccessListener {
-                                        // update the screen so the join button comes back
-                                        lottery =
-                                            snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist - deviceId)
-                                    }
-                                    .addOnFailureListener { onError(it) }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        {
-                            Text(text = "Leave")
+        CampsiteActionsSection(
+            isOwner = isOwner,
+            campsiteName = snapshot_campsite.name,
+            onEdit = { onEditCampsite(snapshot_campsite.id) },
+            onDeleteConfirmed = {
+                val repo = campsiteRepository
+                if (repo == null) {
+                    deleteError = "Could not delete campsite right now."
+                } else {
+                deleting = true
+                deleteError = null
+                repo.deleteCampsiteAndRelatedData(
+                    campsite = snapshot_campsite,
+                    onSuccess = {
+                        deleting = false
+                        onCampsiteDeleted()
+                    },
+                    onFailure = {
+                        deleting = false
+                        deleteError = "Could not delete campsite: ${it.message}"
+                    }
+                )
+                }
+            },
+            onCreateLottery = { onCreateLottery(snapshot_campsite.id) },
+            onViewBookings = { onViewBookings(snapshot_campsite.id) },
+            deleting = deleting,
+            deleteError = deleteError
+        ) {
+            val snapshot_lottery = lottery
+            if(snapshot_lottery != null) {
+                if (snapshot_lottery.waitlist.contains(deviceId)) {
+                    Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "You have already joined this lottery",
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(
+                                shape = MaterialTheme.shapes.small,
+                                onClick = {
+                                    FirebaseFirestore.getInstance()
+                                        .collection("lotteries")
+                                        .document(snapshot_lottery.id)
+                                        .update("waitlist", FieldValue.arrayRemove(deviceId))
+                                        .addOnSuccessListener {
+                                            // update the screen so the join button comes back
+                                            lottery =
+                                                snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist - deviceId)
+                                        }
+                                        .addOnFailureListener { onError(it) }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            {
+                                Text(text = "Leave")
+                            }
                         }
+                    }
+                }
+                else {
+                    Button(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = {FirebaseFirestore.getInstance()
+                            .collection("lotteries")
+                            .document(snapshot_lottery.id)
+                            .update("waitlist", FieldValue.arrayUnion(deviceId))
+                            .addOnSuccessListener {
+                                lottery = snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist + deviceId)
+                            }
+                            .addOnFailureListener { onError(it) }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    {
+                        Text(text = "Join")
                     }
                 }
             }
             else {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = {FirebaseFirestore.getInstance()
-                        .collection("lotteries")
-                        .document(snapshot_lottery.id)
-                        .update("waitlist", FieldValue.arrayUnion(deviceId))
-                        .addOnSuccessListener {
-                            lottery = snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist + deviceId)
-                        }
-                        .addOnFailureListener { onError(it) }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                {
-                    Text(text = "Join")
+                Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "No Active Lottery",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 }
-            }
-        }
-        else {
-            Card(border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline), modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "No Active Lottery",
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(16.dp)
-                )
             }
         }
         Text(

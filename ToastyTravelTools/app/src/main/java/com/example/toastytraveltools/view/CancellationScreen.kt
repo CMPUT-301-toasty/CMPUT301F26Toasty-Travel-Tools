@@ -12,6 +12,9 @@ Issues:
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +50,13 @@ fun CancellationScreen(reservation: Reservation, onHome: () -> Unit = {}) {
         }
     }
 
-    Column(Modifier.padding(horizontal = 20.dp, vertical = 64.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 64.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         Text("Reservation Cancelled", style = MaterialTheme.typography.headlineMedium)
         Text("Confirmation #: ${reservation.id}")
         Text("Campsite: ${reservation.campsiteName}")

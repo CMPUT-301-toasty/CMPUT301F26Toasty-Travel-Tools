@@ -1,5 +1,7 @@
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -309,61 +311,66 @@ fun AdminProfilesScreen(onBack: () -> Unit) {
                 }
 
             } else {
-
-                val profile = selectedProfile!!
-
-                Text(
-                    text = "Profile Details",
-                    style = MaterialTheme.typography.headlineMedium
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text("Name: ${profile.name}")
-                Text("Email: ${profile.email}")
-                Text("Phone: ${profile.phone}")
-                Text("Role: ${profile.role}")
-                Text("Profile ID: ${profile.id}")
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedButton(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = {
-                        selectedProfile = null
-                        deleteError = null
-                    },
-                    enabled = !isDeleting
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Text("Back to profiles")
-                }
+                    val profile = selectedProfile!!
 
-                // Only Entrant profiles can be removed here.
-                if (profile.role.equals("entrant", ignoreCase = true)) {
+                    Text(
+                        text = "Profile Details",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
+                    Text("Name: ${profile.name}")
+                    Text("Email: ${profile.email}")
+                    Text("Phone: ${profile.phone}")
+                    Text("Role: ${profile.role}")
+                    Text("Profile ID: ${profile.id}")
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedButton(
                         shape = MaterialTheme.shapes.small,
                         onClick = {
+                            selectedProfile = null
                             deleteError = null
-                            showDeleteConfirmation = true
                         },
-                        enabled = !isDeleting,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                        enabled = !isDeleting
                     ) {
-                        Text("Remove Profile")
+                        Text("Back to profiles")
                     }
-                }
 
-                deleteError?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    // Only Entrant profiles can be removed here.
+                    if (profile.role.equals("entrant", ignoreCase = true)) {
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Button(
+                            shape = MaterialTheme.shapes.small,
+                            onClick = {
+                                deleteError = null
+                                showDeleteConfirmation = true
+                            },
+                            enabled = !isDeleting,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Remove Profile")
+                        }
+                    }
+
+                    deleteError?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }
