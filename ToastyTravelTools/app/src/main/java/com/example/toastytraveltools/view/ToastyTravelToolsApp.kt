@@ -135,7 +135,30 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onEditCampsite = { id -> navController.navigate("owner_edit_campsite?campsiteId=$id") },
                 onCreateLottery = { id -> navController.navigate("owner_create_lottery?campsiteId=$id") },
                 onViewBookings = { id -> navController.navigate("owner_booking?campsiteId=$id") },
-                onCampsiteDeleted = { goToExplore() }
+                onCampsiteDeleted = { goToExplore() },
+                lotteryRepository = lotteryRepository,
+                onLotteryClick = { id -> navController.navigate("lottery/$id") }
+            )
+        }
+
+        // Lottery details, opened from the Lotteries list on a campsite's Details page
+        composable("lottery/{lotteryId}") { backStackEntry ->
+            LotteryDetailsScreen(
+                lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: "",
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onBack = { navController.popBackStack() },
+                onEditLottery = { id -> navController.navigate("lottery/$id/edit") }
+            )
+        }
+
+        // Edit a lottery, opened from the lottery details screen (owner only)
+        composable("lottery/{lotteryId}/edit") { backStackEntry ->
+            EditLotteryScreen(
+                lotteryId = backStackEntry.arguments?.getString("lotteryId") ?: "",
+                lotteryRepository = lotteryRepository,
+                campsiteRepository = campsiteRepository,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -270,7 +293,8 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onOwnerBookingsClick = { navController.navigate("owner_booking") },
                 onAddCampsiteClick = { navController.navigate("owner_add") },
                 onAdminClick = { navController.navigate("admin") },
-                onCreateLotteryClick = { navController.navigate("owner_create_lottery") }
+                onCreateLotteryClick = { navController.navigate("owner_create_lottery") },
+                onLotteryClick = { lotteryId -> navController.navigate("lottery/$lotteryId") }
             )
         }
 

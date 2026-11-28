@@ -9,6 +9,9 @@ actions on a campsite's Details page, which pass the campsite to preselect.
 
 package com.example.toastytraveltools.view
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material3.MaterialTheme
 
 import androidx.compose.foundation.background
@@ -35,7 +38,9 @@ import com.example.toastytraveltools.model.Campsite
 import com.example.toastytraveltools.model.Lottery
 import com.google.firebase.Timestamp
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -186,6 +191,182 @@ fun OwnerScreenAddCampsite(
     }
 }
 
+/**
+ * One of the owner's campsites with a checkbox, used to pick a lottery's campsites on the
+ * create and edit lottery forms. Tapping anywhere on the row toggles it.
+ */
+@Composable
+fun CampsitePickerRow(site: Campsite, checked: Boolean, onToggle: () -> Unit) {
+    // each campsite is its own box, styled like the boxes on the lottery details screen
+    val shape = MaterialTheme.shapes.medium
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline), shape)
+            .clickable { onToggle() }
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Checkbox(
+            checked = checked,
+            onCheckedChange = { onToggle() },
+            colors = CheckboxDefaults.colors(uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant)
+        )
+        Column {
+            Text(site.name, style = MaterialTheme.typography.titleSmall)
+            val guests = "Max ${site.occupancyLimit} " +
+                if (site.occupancyLimit == 1) "guest" else "guests"
+            Text(
+                text = listOf(site.location, guests)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// The lottery forms keep dates as yyyy-MM-dd days. The date picker works in midnight-UTC millis,
+// so these convert between the two in UTC, where a day is always exactly 24 hours.
+private const val DAY_MILLIS = 24L * 60 * 60 * 1000
+
+private fun utcDayFormat(pattern: String) =
+    SimpleDateFormat(pattern, Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+        isLenient = false
+    }
+
+/** A yyyy-MM-dd day as the date picker's millis, or null if it isn't a real day. */
+fun lotteryDayToPickerMillis(day: String): Long? {
+    val trimmed = day.trim()
+    if (!Regex("""\d{4}-\d{2}-\d{2}""").matches(trimmed)) return null
+    return try { utcDayFormat("yyyy-MM-dd").parse(trimmed)?.time } catch (e: Exception) { null }
+}
+
+/** The date picker's millis as a yyyy-MM-dd day. */
+fun pickerMillisToLotteryDay(millis: Long): String = utcDayFormat("yyyy-MM-dd").format(Date(millis))
+
+/** Today on this device, as a yyyy-MM-dd day. */
+fun todayLotteryDay(): String = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+/** The first day booking can open: the day after registration closes, or tomorrow if that isn't set. */
+fun firstBookingDay(registrationEnd: String, today: String = todayLotteryDay()): String {
+    val base = lotteryDayToPickerMillis(registrationEnd) ?: lotteryDayToPickerMillis(today)!!
+    return pickerMillisToLotteryDay(base + DAY_MILLIS)
+}
+
+private fun displayLotteryDay(day: String): String =
+    lotteryDayToPickerMillis(day)?.let { utcDayFormat("MMM d, yyyy").format(Date(it)) } ?: "Not set"
+
+/**
+ * A date window on the lottery forms: shows the chosen start and end days and opens a calendar
+ * to change them, the same calendar used when reserving. Days before [firstSelectableDay] are
+ * greyed out. [onChange] gets the new start and end as yyyy-MM-dd days.
+ */
+@Composable
+fun LotteryDateRangeField(
+    pickerTitle: String,
+    start: String,
+    end: String,
+    firstSelectableDay: String?,
+    onChange: (start: String, end: String) -> Unit,
+    enabled: Boolean = true
+) {
+    var picking by remember { mutableStateOf(false) }
+
+    listOf("Opens" to start, "Closes" to end).forEach { (label, day) ->
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(displayLotteryDay(day), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+        }
+    }
+    OutlinedButton(
+        onClick = { picking = true },
+        enabled = enabled,
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(if (lotteryDayToPickerMillis(start) == null) "Choose dates" else "Change dates")
+    }
+
+    if (picking) {
+        LotteryDateRangeDialog(
+            title = pickerTitle,
+            start = start,
+            end = end,
+            firstSelectableDay = firstSelectableDay,
+            onDismiss = { picking = false },
+            onConfirm = { newStart, newEnd ->
+                picking = false
+                onChange(newStart, newEnd)
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LotteryDateRangeDialog(
+    title: String,
+    start: String,
+    end: String,
+    firstSelectableDay: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    val firstMillis = firstSelectableDay?.let { lotteryDayToPickerMillis(it) }
+    val startMillis = lotteryDayToPickerMillis(start)
+    // the picker rejects an end before the start, so drop a bad saved end
+    val endMillis = lotteryDayToPickerMillis(end)?.takeIf { startMillis != null && it >= startMillis }
+    val state = rememberDateRangePickerState(
+        initialSelectedStartDateMillis = startMillis,
+        initialSelectedEndDateMillis = endMillis,
+        selectableDates = object : SelectableDates {
+            override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                firstMillis == null || utcTimeMillis >= firstMillis
+        }
+    )
+    var error by remember { mutableStateOf<String?>(null) }
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                val pickedStart = state.selectedStartDateMillis
+                // a single tapped day is a one-day window
+                val pickedEnd = state.selectedEndDateMillis ?: pickedStart
+                if (pickedStart == null || pickedEnd == null) {
+                    error = "Pick a start and end date"
+                } else {
+                    onConfirm(pickerMillisToLotteryDay(pickedStart), pickerMillisToLotteryDay(pickedEnd))
+                }
+            }) { Text("Done") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    ) {
+        Column {
+            DateRangePicker(
+                state = state,
+                modifier = Modifier.weight(1f),
+                title = { Text(text = title, modifier = Modifier.padding(16.dp)) }
+            )
+            Text(
+                text = "Greyed out dates are unavailable",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+            error?.let {
+                Text(text = it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp))
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OwnerScreenCreateLottery(
@@ -222,113 +403,73 @@ fun OwnerScreenCreateLottery(
     var errorMessage by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Create Lottery") },
-                navigationIcon = {
-                    TextButton(onClick = onNavigateBack) {
-                        Text("Back")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
+    LotteryFormScaffold(title = "Create Lottery", onNavigateBack = onNavigateBack) { innerPadding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(20.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (errorMessage.isNotEmpty()) {
                 Text(text = errorMessage, color = MaterialTheme.colorScheme.error)
             }
 
-            Text(
-                text = if (myCampsites.size > 1) "Campsites in this lottery *" else "Campsite *",
-                style = MaterialTheme.typography.labelLarge
-            )
-            if (myCampsites.isEmpty()) {
-                Text(
-                    text = "List a campsite before creating a lottery.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            myCampsites.forEach { site ->
-                val checked = site.id in selectedCampsiteIds
-                val toggle = {
-                    if (checked) selectedCampsiteIds.remove(site.id) else selectedCampsiteIds.add(site.id)
-                }
-                // each campsite sits in its own small white card; text colours are fixed dark so
-                // they stay readable on white in dark theme too
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.small)
-                        .background(Color.White)
-                        .border(1.dp, Color.LightGray, MaterialTheme.shapes.small)
-                        .clickable { toggle() }
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Checkbox(
-                        checked = checked,
-                        onCheckedChange = { toggle() },
-                        colors = CheckboxDefaults.colors(uncheckedColor = Color.DarkGray)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LotterySectionTitle(if (myCampsites.size > 1) "Campsites in this lottery *" else "Campsite *")
+                if (myCampsites.isEmpty()) {
+                    Text(
+                        text = "List a campsite before creating a lottery.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Column {
-                        Text(site.name, color = Color.Black)
-                        val guests = "Max ${site.occupancyLimit} " +
-                            if (site.occupancyLimit == 1) "guest" else "guests"
-                        Text(
-                            text = listOf(site.location, guests)
-                                .filter { it.isNotBlank() }
-                                .joinToString(" · "),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.DarkGray
-                        )
+                }
+                myCampsites.forEach { site ->
+                    val checked = site.id in selectedCampsiteIds
+                    CampsitePickerRow(site = site, checked = checked) {
+                        if (checked) selectedCampsiteIds.remove(site.id) else selectedCampsiteIds.add(site.id)
                     }
                 }
             }
 
-            OutlinedTextField(
-                value = registrationStart,
-                onValueChange = { registrationStart = it },
-                label = { Text("Registration Start (yyyy-mm-dd) *") },
-                modifier = Modifier.fillMaxWidth()
-            )
+            LotteryFormSection("Winners") {
+                OutlinedTextField(
+                    value = numberOfWinners,
+                    onValueChange = { numberOfWinners = it },
+                    label = { Text("Number of Winners *") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-            OutlinedTextField(
-                value = registrationEnd,
-                onValueChange = { registrationEnd = it },
-                label = { Text("Registration End (yyyy-mm-dd) *") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            OutlinedTextField(
-                value = bookingStart,
-                onValueChange = { bookingStart = it },
-                label = { Text("Booking Start Date (yyyy-mm-dd) *") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            OutlinedTextField(
-                value = bookingEnd,
-                onValueChange = { bookingEnd = it },
-                label = { Text("Booking End Date (yyyy-mm-dd) *") },
-                modifier = Modifier.fillMaxWidth()
-            )
-            
-            OutlinedTextField(
-                value = numberOfWinners,
-                onValueChange = { numberOfWinners = it },
-                label = { Text("Number of Winners *") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
-            )
+            LotteryFormSection("Registration window *") {
+                LotteryDateRangeField(
+                    pickerTitle = "Pick the registration window",
+                    start = registrationStart,
+                    end = registrationEnd,
+                    // registration can't start in the past
+                    firstSelectableDay = todayLotteryDay(),
+                    onChange = { start, end ->
+                        registrationStart = start
+                        registrationEnd = end
+                    }
+                )
+            }
+
+            LotteryFormSection("Booking window *") {
+                LotteryDateRangeField(
+                    pickerTitle = "Pick the booking window",
+                    start = bookingStart,
+                    end = bookingEnd,
+                    // booking opens after registration closes
+                    firstSelectableDay = firstBookingDay(registrationEnd),
+                    onChange = { start, end ->
+                        bookingStart = start
+                        bookingEnd = end
+                    }
+                )
+            }
 
             Button(
                 shape = MaterialTheme.shapes.small,
@@ -617,4 +758,62 @@ fun OwnerScreenEditCampsite(
             }
         }
     }
+}
+
+// The look of the lottery forms, matching the lottery details screen: a white page with
+// bordered off-white boxes.
+
+/** White page, or the normal dark background in dark theme. */
+@Composable
+private fun lotteryPageColor(): Color =
+    if (MaterialTheme.colorScheme.background.luminance() > 0.5f) Color.White
+    else MaterialTheme.colorScheme.background
+
+/** A bold section title, like "Selected campsites" on the details screen. */
+@Composable
+private fun LotterySectionTitle(text: String) {
+    Text(text = text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+}
+
+/** A titled box holding part of a lottery form. */
+@Composable
+private fun LotteryFormSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LotterySectionTitle(title)
+        Card(
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content
+            )
+        }
+    }
+}
+
+/** The white page with a Back button and title that the form sits in. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LotteryFormScaffold(
+    title: String,
+    onNavigateBack: () -> Unit,
+    content: @Composable (PaddingValues) -> Unit
+) {
+    val page = lotteryPageColor()
+    Scaffold(
+        containerColor = page,
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    TextButton(onClick = onNavigateBack) { Text("Back") }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = page)
+            )
+        },
+        content = content
+    )
 }

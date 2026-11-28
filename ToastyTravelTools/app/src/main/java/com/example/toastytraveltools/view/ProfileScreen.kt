@@ -283,6 +283,7 @@ fun deleteProfile(
  * @param onAddCampsiteClick Opens the add-campsite form.
  * @param onAdminClick Opens the admin dashboard.
  * @param onCreateLotteryClick Opens the create-lottery form, where one or more campsites can be picked.
+ * @param onLotteryClick Opens a lottery's details page, given the lottery's id.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -298,7 +299,8 @@ fun ProfileScreen(
     onOwnerBookingsClick: () -> Unit = {},
     onAddCampsiteClick: () -> Unit = {},
     onAdminClick: () -> Unit = {},
-    onCreateLotteryClick: () -> Unit = {}
+    onCreateLotteryClick: () -> Unit = {},
+    onLotteryClick: (String) -> Unit = {}
 ) {
     var confirmDeleteProfile by remember { mutableStateOf(false) }
     var profile by remember { mutableStateOf<UserProfile?>(null) }
@@ -351,7 +353,9 @@ fun ProfileScreen(
             .whereEqualTo("ownerId", userId)
             .addSnapshotListener { snapshot, _ ->
                 if (snapshot != null) {
-                    myLotteries = snapshot.toObjects(Lottery::class.java)
+                    // fill in the document id, older lotteries don't store it as a field
+                    myLotteries = snapshot.documents
+                        .mapNotNull { doc -> doc.toObject(Lottery::class.java)?.apply { id = doc.id } }
                         .sortedByDescending { it.registrationStart?.seconds ?: 0L }
                 }
             }
@@ -639,7 +643,8 @@ fun ProfileScreen(
                 onOwnerBookingsClick = onOwnerBookingsClick,
                 onAddCampsiteClick = onAddCampsiteClick,
                 onCreateLotteryClick = onCreateLotteryClick,
-                myLotteries = myLotteries
+                myLotteries = myLotteries,
+                onLotteryClick = onLotteryClick
             )
 
             // Admin tools exist only for admin profiles; nobody else sees the entry
@@ -715,7 +720,8 @@ fun ProfileHostingSection(
     onOwnerBookingsClick: () -> Unit,
     onAddCampsiteClick: () -> Unit,
     onCreateLotteryClick: () -> Unit = {},
-    myLotteries: List<Lottery> = emptyList()
+    myLotteries: List<Lottery> = emptyList(),
+    onLotteryClick: (String) -> Unit = {}
 ) {
     ToastySectionLabel("My campsites")
     if (myCampsites.isEmpty()) {
@@ -765,8 +771,7 @@ fun ProfileHostingSection(
             ToastyNavRow(
                 title = lotteryTitle(lottery, myCampsites),
                 subtitle = lotterySubtitle(lottery),
-                // a lottery has no page of its own yet, so open its first campsite's Details
-                onClick = { lottery.campsiteIds.firstOrNull()?.let(onCampsiteClick) }
+                onClick = { onLotteryClick(lottery.id) }
             )
         }
     }

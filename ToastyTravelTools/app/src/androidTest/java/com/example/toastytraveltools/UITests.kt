@@ -19,6 +19,7 @@ import com.example.toastytraveltools.view.components.MainTab
 import com.example.toastytraveltools.view.components.ToastyMainBottomBar
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -358,8 +359,9 @@ class UITests {
     }
 
     @Test
-    fun profile_listsMyLotteries_underBookings_andOpensFirstCampsite() {
-        var opened: String? = null
+    fun profile_listsMyLotteries_underBookings_andOpensLotteryDetails() {
+        var openedLottery: String? = null
+        var openedCampsite: String? = null
         val sites = listOf(
             Campsite(id = "c1", name = "Lakeview", ownerId = "testUserId"),
             Campsite(id = "c2", name = "Pine Ridge", ownerId = "testUserId")
@@ -368,17 +370,20 @@ class UITests {
             androidx.compose.foundation.layout.Column {
                 ProfileHostingSection(
                     myCampsites = sites,
-                    onCampsiteClick = { opened = it },
+                    onCampsiteClick = { openedCampsite = it },
                     onOwnerBookingsClick = {},
                     onAddCampsiteClick = {},
-                    myLotteries = listOf(Lottery(id = "l1", campsiteIds = listOf("c1", "c2")))
+                    myLotteries = listOf(Lottery(id = "l1", campsiteIds = listOf("c1", "c2"))),
+                    onLotteryClick = { openedLottery = it }
                 )
             }
         }
 
         composeTestRule.onNodeWithText("My lotteries", ignoreCase = true).assertIsDisplayed()
         composeTestRule.onNodeWithText("Lakeview, Pine Ridge").performClick()
-        assertEquals("c1", opened)
+        // a lottery opens its own details page, not one of its campsites
+        assertEquals("l1", openedLottery)
+        assertNull(openedCampsite)
     }
 
     @Test
