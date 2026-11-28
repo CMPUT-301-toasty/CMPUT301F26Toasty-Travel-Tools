@@ -17,6 +17,11 @@ import com.example.toastytraveltools.view.components.ToastyMainBottomBar
 import com.example.toastytraveltools.view.components.ToastyNavRow
 import com.example.toastytraveltools.view.components.ToastySectionLabel
 import com.example.toastytraveltools.model.Campsite
+import com.example.toastytraveltools.model.Lottery
+import androidx.compose.runtime.DisposableEffect
+import com.google.firebase.Timestamp
+import java.text.SimpleDateFormat
+import java.util.Locale
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
@@ -277,6 +282,7 @@ fun deleteProfile(
  * @param onOwnerBookingsClick Opens bookings (and guest messages) for the owner's campsites.
  * @param onAddCampsiteClick Opens the add-campsite form.
  * @param onAdminClick Opens the admin dashboard.
+ * @param onCreateLotteryClick Opens the create-lottery form, where one or more campsites can be picked.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -291,7 +297,8 @@ fun ProfileScreen(
     onCampsiteClick: (String) -> Unit = {},
     onOwnerBookingsClick: () -> Unit = {},
     onAddCampsiteClick: () -> Unit = {},
-    onAdminClick: () -> Unit = {}
+    onAdminClick: () -> Unit = {},
+    onCreateLotteryClick: () -> Unit = {}
 ) {
     var confirmDeleteProfile by remember { mutableStateOf(false) }
     var profile by remember { mutableStateOf<UserProfile?>(null) }
@@ -333,6 +340,22 @@ fun ProfileScreen(
                 }
             )
         }
+    }
+
+    // lotteries this user created; a live listener so one made on the create form shows up
+    // as soon as they come back to Profile
+    var myLotteries by remember { mutableStateOf<List<Lottery>>(emptyList()) }
+    DisposableEffect(userId) {
+        val registration = FirebaseFirestore.getInstance()
+            .collection("lotteries")
+            .whereEqualTo("ownerId", userId)
+            .addSnapshotListener { snapshot, _ ->
+                if (snapshot != null) {
+                    myLotteries = snapshot.toObjects(Lottery::class.java)
+                        .sortedByDescending { it.registrationStart?.seconds ?: 0L }
+                }
+            }
+        onDispose { registration.remove() }
     }
 
     LaunchedEffect(userId) {
@@ -614,7 +637,9 @@ fun ProfileScreen(
                 myCampsites = myCampsites,
                 onCampsiteClick = onCampsiteClick,
                 onOwnerBookingsClick = onOwnerBookingsClick,
-                onAddCampsiteClick = onAddCampsiteClick
+                onAddCampsiteClick = onAddCampsiteClick,
+                onCreateLotteryClick = onCreateLotteryClick,
+                myLotteries = myLotteries
             )
 
             // Admin tools exist only for admin profiles; nobody else sees the entry
@@ -679,14 +704,18 @@ fun ProfileScreen(
 
 /**
  * "My campsites" plus the owner entries on Profile. Tapping a campsite opens its Details
- * page, where Edit / Delete / Create lottery / View bookings live.
+ * page, where Edit / Delete / Create lottery / View bookings live. "Create a lottery" only shows
+ * once the user has listed a campsite, and opens the lottery form where they can pick one or
+ * more of their campsites.
  */
 @Composable
 fun ProfileHostingSection(
     myCampsites: List<Campsite>,
     onCampsiteClick: (String) -> Unit,
     onOwnerBookingsClick: () -> Unit,
-    onAddCampsiteClick: () -> Unit
+    onAddCampsiteClick: () -> Unit,
+    onCreateLotteryClick: () -> Unit = {},
+    myLotteries: List<Lottery> = emptyList()
 ) {
     ToastySectionLabel("My campsites")
     if (myCampsites.isEmpty()) {
@@ -703,6 +732,13 @@ fun ProfileHostingSection(
                 onClick = { onCampsiteClick(site.id) }
             )
         }
+        Button(
+            onClick = onCreateLotteryClick,
+            shape = MaterialTheme.shapes.small,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Create a lottery")
+        }
     }
     OutlinedButton(
         onClick = onAddCampsiteClick,
@@ -716,4 +752,54 @@ fun ProfileHostingSection(
         subtitle = "See who's booked, cancel, and message your guests",
         onClick = onOwnerBookingsClick
     )
+
+    ToastySectionLabel("My lotteries")
+    if (myLotteries.isEmpty()) {
+        Text(
+            text = "You haven't created a lottery yet.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    } else {
+        myLotteries.forEach { lottery ->
+            ToastyNavRow(
+                title = lotteryTitle(lottery, myCampsites),
+                subtitle = lotterySubtitle(lottery),
+                // a lottery has no page of its own yet, so open its first campsite's Details
+                onClick = { lottery.campsiteIds.firstOrNull()?.let(onCampsiteClick) }
+            )
+        }
+    }
+}
+
+/**
+ * Display name for a lottery row: its own name if it has one, otherwise the names of the
+ * campsites in it (e.g. "Lakeview, Pine Ridge").
+ */
+fun lotteryTitle(lottery: Lottery, campsites: List<Campsite>): String {
+    if (lottery.lotteryName.isNotBlank()) return lottery.lotteryName
+    val names = lottery.campsiteIds.mapNotNull { id -> campsites.find { it.id == id }?.name }
+    return names.joinToString(", ").ifBlank { "Lottery" }
+}
+
+/**
+ * Status and registration window for a lottery row, e.g. "Open · Registration Dec 1 – Dec 10, 2026".
+ */
+fun lotterySubtitle(lottery: Lottery, now: Timestamp = Timestamp.now()): String {
+    val start = lottery.registrationStart
+    val end = lottery.registrationEnd
+    val status = when {
+        start == null || end == null -> null
+        now < start -> "Upcoming"
+        now > end -> "Closed"
+        else -> "Open"
+    }
+    val dayFmt = SimpleDateFormat("MMM d", Locale.getDefault())
+    val fullFmt = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+    val window = if (start != null && end != null) {
+        "Registration ${dayFmt.format(start.toDate())} – ${fullFmt.format(end.toDate())}"
+    } else null
+    val campsites = lottery.campsiteIds.size
+        .takeIf { it > 1 }?.let { "$it campsites" }
+    return listOfNotNull(status, window, campsites).joinToString(" · ")
 }

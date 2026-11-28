@@ -10,6 +10,8 @@ import com.example.toastytraveltools.model.Campsite
 import com.example.toastytraveltools.view.CampsiteActionsSection
 import com.example.toastytraveltools.view.OwnerScreenAddCampsite
 import com.example.toastytraveltools.view.OwnerScreenCreateLottery
+import com.example.toastytraveltools.model.Lottery
+import com.example.toastytraveltools.view.ProfileHostingSection
 import com.example.toastytraveltools.view.ProfileScreen
 import com.example.toastytraveltools.view.SearchScreen
 import com.example.toastytraveltools.view.components.AdminGate
@@ -332,6 +334,67 @@ class UITests {
         }
 
         composeTestRule.onNodeWithText("You haven't listed a campsite yet.").performScrollTo().assertIsDisplayed()
+        // no campsites means nothing to run a lottery for
+        composeTestRule.onNodeWithText("Create a lottery").assertDoesNotExist()
+    }
+
+    @Test
+    fun profile_withCampsites_showsCreateLottery() {
+        var createClicked = false
+        composeTestRule.setContent {
+            ProfileScreen(
+                userId = "testUserId",
+                myCampsites = listOf(
+                    Campsite(id = "c1", name = "Lakeview", location = "Jasper", ownerId = "testUserId"),
+                    Campsite(id = "c2", name = "Pine Ridge", location = "Banff", ownerId = "testUserId")
+                ),
+                onCreateLotteryClick = { createClicked = true }
+            )
+        }
+
+        composeTestRule.onNodeWithText("Create a lottery").performScrollTo()
+            .performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.OnClick)
+        assertTrue(createClicked)
+    }
+
+    @Test
+    fun profile_listsMyLotteries_underBookings_andOpensFirstCampsite() {
+        var opened: String? = null
+        val sites = listOf(
+            Campsite(id = "c1", name = "Lakeview", ownerId = "testUserId"),
+            Campsite(id = "c2", name = "Pine Ridge", ownerId = "testUserId")
+        )
+        composeTestRule.setContent {
+            androidx.compose.foundation.layout.Column {
+                ProfileHostingSection(
+                    myCampsites = sites,
+                    onCampsiteClick = { opened = it },
+                    onOwnerBookingsClick = {},
+                    onAddCampsiteClick = {},
+                    myLotteries = listOf(Lottery(id = "l1", campsiteIds = listOf("c1", "c2")))
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("My lotteries", ignoreCase = true).assertIsDisplayed()
+        composeTestRule.onNodeWithText("Lakeview, Pine Ridge").performClick()
+        assertEquals("c1", opened)
+    }
+
+    @Test
+    fun profile_noLotteries_showsEmptyState() {
+        composeTestRule.setContent {
+            androidx.compose.foundation.layout.Column {
+                ProfileHostingSection(
+                    myCampsites = emptyList(),
+                    onCampsiteClick = {},
+                    onOwnerBookingsClick = {},
+                    onAddCampsiteClick = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("You haven't created a lottery yet.").assertIsDisplayed()
     }
 
     // ---- Admin route guard ----

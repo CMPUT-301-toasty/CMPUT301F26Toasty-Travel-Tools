@@ -264,7 +264,8 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 onCampsiteClick = { campsiteId -> navController.navigate("details/$campsiteId") },
                 onOwnerBookingsClick = { navController.navigate("owner_booking") },
                 onAddCampsiteClick = { navController.navigate("owner_add") },
-                onAdminClick = { navController.navigate("admin") }
+                onAdminClick = { navController.navigate("admin") },
+                onCreateLotteryClick = { navController.navigate("owner_create_lottery") }
             )
         }
 
