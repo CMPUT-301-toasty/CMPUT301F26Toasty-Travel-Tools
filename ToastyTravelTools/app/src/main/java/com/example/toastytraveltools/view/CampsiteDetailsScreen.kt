@@ -56,6 +56,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.layout.PaddingValues
 import com.example.toastytraveltools.controller.CampsiteRepository
+import com.example.toastytraveltools.controller.LotteryRepository
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.material3.Slider
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -115,7 +117,9 @@ fun CampsiteDetailsScreen(
     onEditCampsite: (String) -> Unit = {},
     onCreateLottery: (String) -> Unit = {},
     onViewBookings: (String) -> Unit = {},
-    onCampsiteDeleted: () -> Unit = {}
+    onCampsiteDeleted: () -> Unit = {},
+    lotteryRepository: LotteryRepository? = null,
+    onLotteryClick: (String) -> Unit = {}
 ) {
     Log.d("ReviewsDebug", "Flow0")
     var campsite by remember { mutableStateOf<Campsite?>(null)}
@@ -126,6 +130,18 @@ fun CampsiteDetailsScreen(
     var campsiteRating by remember { mutableDoubleStateOf(0.0) }
     var deleting by remember { mutableStateOf(false) }
     var deleteError by remember { mutableStateOf<String?>(null) }
+    // every lottery this campsite is in, listed for the owner so they can open one
+    var campsiteLotteries by remember { mutableStateOf(listOf<Lottery>()) }
+    val joinRepository = remember(lotteryRepository) { lotteryRepository ?: LotteryRepository() }
+
+    DisposableEffect(campsiteId, lotteryRepository) {
+        val registration = lotteryRepository?.listenToLotteriesForCampsite(
+            campsiteId = campsiteId,
+            onResult = { campsiteLotteries = it },
+            onFailure = { onError(it) }
+        )
+        onDispose { registration?.remove() }
+    }
 
     LaunchedEffect(campsiteId) {
         Log.d("ReviewsDebug", "Flow1")
@@ -445,21 +461,31 @@ fun CampsiteDetailsScreen(
                     }
                 }
                 else {
+                    // the owner can cap the waitlist; the join itself re-checks the cap in a transaction
+                    val waitlistFull = waitlistPlacesLeft(snapshot_lottery) == 0
                     Button(
                         shape = MaterialTheme.shapes.small,
-                        onClick = {FirebaseFirestore.getInstance()
-                            .collection("lotteries")
-                            .document(snapshot_lottery.id)
-                            .update("waitlist", FieldValue.arrayUnion(deviceId))
-                            .addOnSuccessListener {
-                                lottery = snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist + deviceId)
-                            }
-                            .addOnFailureListener { onError(it) }
+                        enabled = !waitlistFull,
+                        onClick = {
+                            joinRepository.joinWaitlist(
+                                lotteryId = snapshot_lottery.id,
+                                entrantId = deviceId,
+                                onSuccess = {
+                                    lottery = snapshot_lottery.copy(waitlist = snapshot_lottery.waitlist + deviceId)
+                                },
+                                onFull = {
+                                    // someone took the last place first, show the full state
+                                    lottery = snapshot_lottery.copy(
+                                        waitlistCapacity = snapshot_lottery.waitlist.distinct().size
+                                    )
+                                },
+                                onFailure = { onError(it) }
+                            )
                         },
                         modifier = Modifier.fillMaxWidth()
                     )
                     {
-                        Text(text = "Join")
+                        Text(text = if (waitlistFull) "Waitlist full" else "Join")
                     }
                 }
             }
@@ -471,6 +497,23 @@ fun CampsiteDetailsScreen(
                         modifier = Modifier.padding(16.dp)
                     )
                 }
+            }
+        }
+        if (isOwner) {
+            Text(
+                text = "Lotteries",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            if (campsiteLotteries.isEmpty()) {
+                Text(
+                    text = "No lotteries for this campsite yet",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            campsiteLotteries.forEach { l ->
+                LotteryListItem(lottery = l, onClick = { onLotteryClick(l.id) })
             }
         }
         Text(
