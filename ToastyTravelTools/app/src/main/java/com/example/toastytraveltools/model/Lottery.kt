@@ -34,7 +34,7 @@ import com.google.firebase.firestore.DocumentId
  *
  */
 data class Lottery(
-    @DocumentId var id: String = "",
+    var id: String = "",
     var campsiteIds: List<String> = emptyList(),
     val lotteryName: String = "",
     var ownerId: String = "",

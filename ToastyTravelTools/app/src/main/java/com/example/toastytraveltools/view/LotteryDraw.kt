@@ -51,6 +51,7 @@ fun drawLottery(
     // all in one transaction so the lottery can only ever be drawn once
     db.runTransaction { tx ->
         val lottery = tx.get(lotteryRef).toObject(Lottery::class.java)
+            ?.apply { id = lotteryRef.id }
             ?: error("Lottery not found")
 
         check(lottery.status != "drawn") { "This lottery has already been drawn" }
@@ -94,7 +95,10 @@ fun drawDueLotteries(
         .get()
         .addOnSuccessListener { snapshot ->
 
-            snapshot.toObjects(Lottery::class.java)
+            snapshot.documents.mapNotNull { document ->
+                document.toObject(Lottery::class.java)
+                    ?.apply { id = document.id }
+            }
                 .filter { it.status != "drawn" && it.numberOfWinners > 0 }
                 .forEach { lottery ->
 
@@ -138,6 +142,7 @@ fun claimLotterySpot(
 
         // reads first, writes after
         val lottery = tx.get(lotteryRef).toObject(Lottery::class.java)
+            ?.apply { id = lotteryRef.id }
             ?: error("Lottery not found")
 
         // the winner picks one of the lottery's campsites, it has to be one of them
@@ -275,7 +280,10 @@ fun loadClaimableLotteries(
         .get()
         .addOnSuccessListener { snapshot ->
             onResult(
-                snapshot.toObjects(Lottery::class.java).filter { lottery ->
+                snapshot.documents.mapNotNull { document ->
+                    document.toObject(Lottery::class.java)
+                        ?.apply { id = document.id }
+                }.filter { lottery ->
                     lottery.spotsRemaining > 0 &&
                             lottery.reservations.none { it.entrant_id == entrantId } &&
                             entrantId !in lottery.declinedWinners &&
@@ -454,7 +462,12 @@ fun listenForLotteryWins(
 
             if (error != null) return@addSnapshotListener
 
-            snapshot?.toObjects(Lottery::class.java)?.forEach { lottery ->
+            snapshot?.documents?.forEach { document ->
+
+
+                val lottery = document.toObject(Lottery::class.java)
+                    ?.apply { id = document.id }
+                    ?: return@forEach
 
                 if (entrantId in lottery.notifiedWinners) return@forEach
 
@@ -476,16 +489,23 @@ fun listenForLotteryWins(
                     // people who turned notifications off don't get one
                     db.collection("entrants").document(entrantId).get()
                         .addOnSuccessListener { profile ->
-                            val enabled = profile.toObject(UserProfile::class.java)
-                                ?.notificationsEnabled ?: true
+                            val user = profile.toObject(UserProfile::class.java)
+                            val enabled = user?.notificationsEnabled ?: true
+
                             if (!enabled) return@addOnSuccessListener
 
-                            // look up which campsite they won
-                            // look up which campsite they won
                             withCampsiteName(lottery) { campsiteName ->
-                                LotteryNotifier.send(context, lottery, true, campsiteName)
+                                LotteryNotifier.send(
+                                    context = context,
+                                    l = lottery,
+                                    win = true,
+                                    campsiteName = campsiteName,
+                                    recipientId = entrantId,
+                                    recipientName = user?.name ?: "Unknown user"
+                                )
                             }
                         }
+
                 }
             }
         }
@@ -507,7 +527,11 @@ fun listenForLotteryLosses(
 
             if (error != null) return@addSnapshotListener
 
-            snapshot?.toObjects(Lottery::class.java)
+            snapshot?.documents
+                ?.mapNotNull { document ->
+                    document.toObject(Lottery::class.java)
+                        ?.apply { id = document.id }
+                }
                 ?.filter { it.status == "drawn" && it.ownerId != entrantId }
                 ?.forEach { lottery ->
 
@@ -535,18 +559,26 @@ fun listenForLotteryLosses(
                         if (!claimed) return@addOnSuccessListener
 
                         // people who turned notifications off don't get one
+
                         db.collection("entrants").document(entrantId).get()
                             .addOnSuccessListener { profile ->
-                                val enabled = profile.toObject(UserProfile::class.java)
-                                    ?.notificationsEnabled ?: true
-                                if (enabled) {
-                                    if (enabled) {
-                                        withCampsiteName(lottery) { campsiteName ->
-                                            LotteryNotifier.send(context, lottery, false, campsiteName)
-                                        }
-                                    }
+                                val user = profile.toObject(UserProfile::class.java)
+                                val enabled = user?.notificationsEnabled ?: true
+
+                                if (!enabled) return@addOnSuccessListener
+
+                                withCampsiteName(lottery) { campsiteName ->
+                                    LotteryNotifier.send(
+                                        context = context,
+                                        l = lottery,
+                                        win = false,
+                                        campsiteName = campsiteName,
+                                        recipientId = entrantId,
+                                        recipientName = user?.name ?: "Unknown user"
+                                    )
                                 }
                             }
+
                     }
                 }
         }

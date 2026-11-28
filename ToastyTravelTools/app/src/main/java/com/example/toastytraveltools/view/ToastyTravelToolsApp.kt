@@ -213,6 +213,11 @@ fun ToastyTravelToolsApp(notificationsAllowed: Boolean = true) {
                 )
             }
         }
+        composable("admin_notification_logs") {
+            AdminNotificationLogsScreen(
+                onBack = { navController.navigate("admin") }
+            )
+        }
 
         // Reservation confirmation
         composable("confirmation/{reservationId}") { backStackEntry ->

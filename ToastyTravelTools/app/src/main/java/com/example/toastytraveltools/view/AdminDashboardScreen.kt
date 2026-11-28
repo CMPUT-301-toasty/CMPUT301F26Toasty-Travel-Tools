@@ -58,6 +58,10 @@ fun AdminDashboardScreen(navController: NavController) {
             ToastyNavRow(title = "User Profiles", onClick = { navController.navigate("admin_profiles") })
             ToastyNavRow(title = "Uploaded Images", onClick = { navController.navigate("admin_images") })
             ToastyNavRow(title = "User Reviews", onClick = { navController.navigate("admin_reviews") })
+            ToastyNavRow(
+                title = "Notification Logs",
+                onClick = { navController.navigate("admin_notification_logs") }
+            )
         }
     }
 }
